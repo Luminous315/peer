@@ -1,0 +1,1893 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="opening-locked">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ke Yuan - Portfolio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f7f5f0',
+                            100: '#efebe1',
+                            500: '#8c7e6c',
+                            700: '#655a4c',
+                            800: '#4a4137',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['SF Pro Display', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* STREAMING_CHUNK: 基础页面平滑滚动与滚动条隐藏... */
+        html { scroll-behavior: smooth; }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* 入场文件夹：以鼠标位置连续控制开合，点击后才真正进入主页 */
+        #onboarding-overlay {
+            --folder-front: #7f7567;
+            --folder-front-light: #928777;
+            --folder-back: #5f584e;
+            --folder-edge: #4b463f;
+            --paper: #f7f5f0;
+            isolation: isolate;
+        }
+
+        .onboarding-perspective {
+            width: min(92vw, 500px);
+            perspective: 1300px;
+            perspective-origin: 50% 58%;
+        }
+
+        .entry-kicker {
+            position: absolute;
+            top: 30px;
+            left: 34px;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            color: #8c7e6c;
+            font: 600 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+            letter-spacing: .18em;
+            text-transform: uppercase;
+        }
+
+        .entry-kicker::before {
+            width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            background: #778276;
+            content: "";
+        }
+
+        .folder-stage {
+            position: relative;
+            width: min(76vw, 360px);
+            height: min(108vw, 520px);
+            min-height: 430px;
+            margin-inline: auto;
+            cursor: pointer;
+            outline: none;
+            transform-style: preserve-3d;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .folder-stage:focus-visible {
+            border-radius: 24px;
+            box-shadow: 0 0 0 3px rgba(140, 126, 108, .35);
+        }
+
+        .folder-object {
+            --open: 0;
+            --pointer-x: 0;
+            --pointer-y: 0;
+            position: absolute;
+            inset: auto 0 18px;
+            width: 100%;
+            height: 76%;
+            transform:
+                rotateX(calc(-2deg + var(--pointer-y) * -2deg))
+                rotateY(calc(var(--pointer-x) * 2.5deg))
+                translateY(calc(var(--open) * 6px));
+            transform-style: preserve-3d;
+            transition: transform 120ms linear;
+        }
+
+        .folder-back {
+            position: absolute;
+            inset: 0;
+            border: 1px solid rgba(255,255,255,.14);
+            border-radius: 22px 22px 28px 28px;
+            background:
+                linear-gradient(140deg, rgba(255,255,255,.08), transparent 42%),
+                var(--folder-back);
+            box-shadow:
+                0 34px 70px rgba(66, 59, 50, .20),
+                inset 0 1px 0 rgba(255,255,255,.13);
+            transform: translateZ(-18px);
+        }
+
+        .folder-back::before {
+            display: none;
+        }
+
+        .folder-back::after {
+            position: absolute;
+            top: 20px;
+            right: 22px;
+            left: 22px;
+            height: 1px;
+            background: rgba(255,255,255,.13);
+            content: "";
+        }
+
+        .folder-file {
+            position: absolute;
+            left: 50%;
+            width: 66%;
+            height: 72%;
+            overflow: hidden;
+            border: 1px solid rgba(75, 70, 63, .13);
+            border-radius: 16px;
+            background: #eeeae2;
+            box-shadow: 0 12px 30px rgba(49, 44, 38, .13);
+            transform-origin: 50% 100%;
+            transition:
+                transform 160ms cubic-bezier(.2,.8,.2,1),
+                opacity 160ms ease;
+            will-change: transform;
+        }
+
+        .folder-file.file-shadow {
+            top: 8%;
+            background: #d8d4cb;
+            opacity: calc(.45 + var(--open) * .25);
+            transform:
+                translateX(-50%)
+                translateY(calc(18px + var(--open) * -58px))
+                rotate(calc(-1deg + var(--open) * -3deg))
+                translateZ(-2px);
+        }
+
+        .folder-file.stamp-photo {
+            top: 7%;
+            z-index: 4;
+            width: 52%;
+            height: 70%;
+            padding: 8px 8px 28px;
+            background: #fbfaf6;
+            transform:
+                translateX(calc(-58% - var(--open) * 40px))
+                translateY(calc(20px + var(--open) * -148px))
+                rotate(calc(-1deg + var(--open) * -9deg))
+                translateZ(calc(-12px + var(--open) * 56px));
+        }
+
+        .stamp-photo img {
+            width: 100%;
+            height: 100%;
+            border-radius: 9px 9px 5px 5px;
+            object-fit: cover;
+            object-position: center;
+            filter: saturate(.9);
+        }
+
+        .folder-file.stamp-portfolio {
+            top: 7%;
+            z-index: 3;
+            width: 54%;
+            height: 70%;
+            padding: 9px;
+            background: #fbfaf6;
+            transform:
+                translateX(calc(-42% + var(--open) * 42px))
+                translateY(calc(22px + var(--open) * -124px))
+                rotate(calc(1deg + var(--open) * 9deg))
+                translateZ(calc(-10px + var(--open) * 42px));
+        }
+
+        .portfolio-miniature {
+            position: relative;
+            height: 100%;
+            overflow: hidden;
+            border: 1px solid #e7e1d8;
+            border-radius: 9px;
+            background: #f7f5f0;
+        }
+
+        .mini-nav {
+            height: 13%;
+            border-bottom: 1px solid #ded8ce;
+        }
+
+        .mini-hero {
+            height: 42%;
+            padding: 12% 10%;
+            background: linear-gradient(140deg, #f7f5f0, #efebe1);
+        }
+
+        .mini-line {
+            display: block;
+            height: 5px;
+            margin-bottom: 6px;
+            border-radius: 10px;
+            background: #655a4c;
+        }
+
+        .mini-line:nth-child(1) { width: 68%; }
+        .mini-line:nth-child(2) { width: 88%; background: #9b8e7c; }
+        .mini-line:nth-child(3) { width: 52%; background: #c2b8aa; }
+
+        .mini-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+            padding: 8px;
+        }
+
+        .mini-cards span {
+            height: 34px;
+            border: 1px solid #ded8ce;
+            border-radius: 4px;
+            background: #fff;
+        }
+
+        .stamp-mark {
+            position: absolute;
+            right: 15px;
+            bottom: 11px;
+            color: #8c7e6c;
+            font: 600 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+            letter-spacing: .08em;
+        }
+
+        .folder-front-flap {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            transform-style: preserve-3d;
+        }
+
+        .folder-door {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 50.15%;
+            border: 1px solid rgba(255,255,255,.15);
+            background:
+                linear-gradient(145deg, rgba(255,255,255,.16), transparent 42%),
+                linear-gradient(to bottom, var(--folder-front-light), var(--folder-front));
+            box-shadow:
+                0 20px 45px rgba(62,55,47,.18),
+                inset 0 1px 0 rgba(255,255,255,.16);
+            backface-visibility: hidden;
+            transition: transform 170ms cubic-bezier(.2,.8,.2,1);
+            will-change: transform;
+        }
+
+        .folder-door-left {
+            left: 0;
+            border-radius: 20px 0 0 28px;
+            transform:
+                translateX(calc(var(--open) * -62%))
+                rotateY(calc(var(--open) * -46deg))
+                translateZ(calc(var(--open) * 8px));
+            transform-origin: left center;
+        }
+
+        .folder-door-right {
+            right: 0;
+            border-radius: 0 20px 28px 0;
+            transform:
+                translateX(calc(var(--open) * 62%))
+                rotateY(calc(var(--open) * 46deg))
+                translateZ(calc(var(--open) * 8px));
+            transform-origin: right center;
+        }
+
+        .folder-door-left::after,
+        .folder-door-right::before {
+            position: absolute;
+            top: 16px;
+            bottom: 16px;
+            width: 1px;
+            background: rgba(54,49,43,.22);
+            content: "";
+        }
+
+        .folder-door-left::after { right: 0; }
+        .folder-door-right::before { left: 0; }
+
+        .folder-front-flap::after {
+            position: absolute;
+            top: 7%;
+            bottom: 7%;
+            left: 50%;
+            z-index: 4;
+            width: 1px;
+            background: rgba(255,255,255,.12);
+            content: "";
+            opacity: calc(1 - var(--open));
+        }
+
+        .folder-label {
+            position: absolute;
+            right: 24px;
+            bottom: 22px;
+            left: 24px;
+            z-index: 1;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            color: rgba(247,245,240,.92);
+            opacity: calc(1 - var(--open));
+            transition: opacity 120ms ease;
+            pointer-events: none;
+        }
+
+        .folder-label strong {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: .18em;
+        }
+
+        .folder-label small {
+            display: block;
+            margin-top: 5px;
+            color: rgba(247,245,240,.5);
+            font: 9px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
+            letter-spacing: .12em;
+        }
+
+        .folder-label-index {
+            font: italic 12px/1 Georgia, serif;
+            opacity: .55;
+        }
+
+        .folder-hint {
+            margin-top: 38px;
+            text-align: center;
+            transition: opacity .35s ease, transform .35s ease;
+        }
+
+        .folder-hint strong {
+            display: block;
+            color: #655a4c;
+            font: 500 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+            letter-spacing: .16em;
+            text-transform: uppercase;
+        }
+
+        .folder-hint span {
+            display: block;
+            margin-top: 7px;
+            color: #a69d90;
+            font-size: 10px;
+            letter-spacing: .08em;
+        }
+
+        .folder-stage.is-entering .folder-object {
+            --open: 1 !important;
+            transform: translateY(18px) scale(1.04);
+            transition: transform .75s cubic-bezier(.16,1,.3,1);
+        }
+
+        .folder-stage.is-entering .folder-door-left {
+            transform: translateX(-88%) rotateY(-66deg) translateZ(20px);
+            transition-duration: .75s;
+        }
+
+        .folder-stage.is-entering .folder-door-right {
+            transform: translateX(88%) rotateY(66deg) translateZ(20px);
+            transition-duration: .75s;
+        }
+
+        .folder-stage.is-entering .stamp-photo {
+            transform: translateX(-100%) translateY(-205px) rotate(-13deg) translateZ(46px);
+            transition-duration: .75s;
+        }
+
+        .folder-stage.is-entering .stamp-portfolio {
+            transform: translateX(2%) translateY(-175px) rotate(13deg) translateZ(32px);
+            transition-duration: .75s;
+        }
+
+        .folder-stage.is-entering + .folder-hint {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        @media (max-width: 560px) {
+            nav .max-w-6xl {
+                padding-right: 16px !important;
+                padding-left: 16px !important;
+            }
+
+            nav .space-x-8 {
+                font-size: 9px !important;
+            }
+
+            nav .space-x-8 > :not([hidden]) ~ :not([hidden]) {
+                margin-left: 12px !important;
+            }
+
+            .entry-kicker {
+                top: 22px;
+                left: 22px;
+            }
+
+            .folder-stage {
+                width: min(76vw, 330px);
+                height: min(110vw, 470px);
+                min-height: 410px;
+            }
+
+            .folder-file.stamp-photo {
+                width: 53%;
+            }
+
+            .folder-file.stamp-portfolio {
+                width: 55%;
+            }
+
+            .folder-label {
+                right: 18px;
+                bottom: 17px;
+                left: 18px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .folder-object,
+            .folder-file,
+            .folder-front-flap,
+            .folder-door,
+            #onboarding-overlay,
+            #portfolio-content {
+                transition-duration: .01ms !important;
+            }
+        }
+
+        /* Skills：恢复四层文件夹外观，点击耳仔后稳定重排并锁定 */
+        .folder-container {
+            height: 570px !important;
+            min-height: 570px;
+            padding-top: 48px !important;
+            perspective: 1100px;
+        }
+
+        .folder-stack-item {
+            --stack-rank: 0;
+            position: absolute !important;
+            top: calc(var(--stack-rank) * 55px) !important;
+            display: flex !important;
+            width: 100%;
+            height: 400px !important;
+            min-height: 400px;
+            z-index: calc(10 + var(--stack-rank)) !important;
+            border-radius: 18px !important;
+            box-shadow:
+                0 -8px 28px -13px rgba(55,48,41,.14),
+                0 20px 48px -22px rgba(55,48,41,.19);
+            transition:
+                top .48s cubic-bezier(.16,1,.3,1),
+                box-shadow .35s ease;
+        }
+
+        .folder-stack-item.is-active {
+            box-shadow: 0 28px 65px -24px rgba(55,48,41,.25);
+        }
+
+        .folder-stack-item > div:first-child {
+            display: flex;
+            cursor: pointer;
+            user-select: none;
+            transition: transform .2s ease;
+        }
+
+        .folder-stack-item > div:first-child:focus-visible {
+            outline: 2px solid #8c7e6c;
+            outline-offset: 2px;
+        }
+
+        .folder-stack-item > div:not(:first-child) {
+            transition: opacity .25s ease;
+        }
+
+        .folder-stack-item:not(.is-active) > div:not(:first-child) {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        @media (max-width: 640px) {
+            .folder-container {
+                height: 720px !important;
+                min-height: 720px;
+                padding-top: 42px !important;
+            }
+
+            .folder-stack-item {
+                top: calc(var(--stack-rank) * 48px) !important;
+                height: 560px !important;
+                min-height: 560px;
+                padding: 26px 22px !important;
+            }
+        }
+
+        /* 履历切换淡入淡出 */
+        .exp-pane {
+            transition: opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1), transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        /* OpeningBookmarksSection host：组件内部视觉与主简历样式完全隔离 */
+        #opening-bookmarks-host {
+            min-height: 100svh;
+            background: #feebd4;
+            transition: opacity .5s ease, transform .7s cubic-bezier(.22, 1, .36, 1);
+        }
+
+        html.opening-locked,
+        body.opening-locked {
+            height: 100%;
+            overflow: hidden;
+            overscroll-behavior: none;
+        }
+
+        #opening-bookmarks-host.is-entering-about {
+            opacity: .55;
+            transform: translateY(-5vh);
+        }
+
+        #opening-bookmarks-frame {
+            display: block;
+            width: 100%;
+            height: 100svh;
+            border: 0;
+            background: #feebd4;
+        }
+
+        /* 后半部分暖色阅读主题：严格限制在简历内容容器内 */
+        #portfolio-content {
+            --resume-page: #FFF6EA;
+            --resume-card: #FFFCF6;
+            --resume-skills: #F7F2EB;
+            --resume-text: #3F3029;
+            --resume-muted: #8C7A70;
+            --resume-line: #EADFD3;
+            --resume-shadow: rgba(91, 60, 46, 0.12);
+            color: var(--resume-text);
+            background: var(--resume-page);
+        }
+
+        #portfolio-content main,
+        #portfolio-content footer {
+            background: var(--resume-page);
+        }
+
+        #portfolio-content nav {
+            color: var(--resume-text);
+            border-color: var(--resume-line) !important;
+            background: rgba(255, 246, 234, .88) !important;
+        }
+
+        #portfolio-content :is(
+            h1, h2, h3, h4, h5,
+            .text-stone-900, .text-stone-800, .text-stone-700
+        ) {
+            color: var(--resume-text) !important;
+        }
+
+        #portfolio-content :is(
+            .text-stone-600, .text-stone-500, .text-stone-400,
+            .text-brand-500, .text-brand-700
+        ) {
+            color: var(--resume-muted) !important;
+        }
+
+        #portfolio-content :is(#about, #experience) .rounded-2xl {
+            border-color: var(--resume-line) !important;
+            background: var(--resume-card) !important;
+            box-shadow: 0 16px 38px var(--resume-shadow) !important;
+        }
+
+        #portfolio-content [class*="border-stone-"],
+        #portfolio-content [class*="border-black/5"] {
+            border-color: var(--resume-line) !important;
+        }
+
+        #portfolio-content .folder-stack-item {
+            background-color: var(--folder-color) !important;
+            box-shadow:
+                0 -8px 28px -13px var(--resume-shadow),
+                0 20px 48px -22px var(--resume-shadow);
+        }
+
+        #portfolio-content .folder-stack-item.is-active,
+        #portfolio-content .folder-stack-item.is-active > div:first-child {
+            border-color: var(--resume-line) !important;
+            background-color: var(--folder-color) !important;
+        }
+
+        #portfolio-content .folder-stack-item.is-active {
+            box-shadow: 0 28px 65px -24px var(--resume-shadow);
+        }
+
+        #portfolio-content #skills [class*="bg-white/40"],
+        #portfolio-content #skills [class*="bg-black/5"] {
+            border-color: var(--resume-line) !important;
+            background: var(--resume-card) !important;
+        }
+
+        #portfolio-content footer {
+            color: var(--resume-muted) !important;
+            border-color: var(--resume-line) !important;
+        }
+
+        /* 简历滚动容器：Opening 退出后，About Me 成为永久顶部 */
+        #portfolio-content[inert] {
+            display: none;
+        }
+
+        html.resume-mode,
+        body.resume-mode {
+            height: 100%;
+            overflow: hidden;
+            overscroll-behavior: none;
+        }
+
+        #portfolio-content {
+            height: 100svh;
+            opacity: 0;
+            transition: opacity .65s cubic-bezier(.22, 1, .36, 1);
+            overflow-x: hidden;
+            overflow-y: hidden;
+            scroll-behavior: auto;
+            overscroll-behavior-y: contain;
+        }
+
+        #portfolio-content.resume-active {
+            display: block;
+            opacity: 1;
+            overflow-y: auto;
+        }
+
+        #portfolio-content nav {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        #portfolio-content .language-switcher {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--resume-muted);
+            font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+            letter-spacing: .12em;
+        }
+
+        #portfolio-content .language-switcher button {
+            position: relative;
+            padding: 8px 2px;
+            color: var(--resume-muted);
+            transition: color .18s ease, font-weight .18s ease;
+        }
+
+        #portfolio-content .language-switcher button::after {
+            position: absolute;
+            right: 2px;
+            bottom: 3px;
+            left: 2px;
+            height: 1px;
+            background: var(--resume-text);
+            content: "";
+            opacity: 0;
+            transform: scaleX(.35);
+            transition: opacity .18s ease, transform .18s ease;
+        }
+
+        #portfolio-content .language-switcher button[aria-pressed="true"] {
+            color: var(--resume-text);
+            font-weight: 800;
+        }
+
+        #portfolio-content .language-switcher button[aria-pressed="true"]::after {
+            opacity: 1;
+            transform: scaleX(1);
+        }
+
+        #portfolio-content main.page-transition-container {
+            transition: opacity .18s ease;
+        }
+
+        #portfolio-content.is-language-switching main.page-transition-container {
+            opacity: .58;
+        }
+
+        #portfolio-content main.page-transition-container {
+            position: relative;
+            width: 100%;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            overflow: visible;
+        }
+
+        #portfolio-content main.page-transition-container > section.resume-scroll-section {
+            position: relative;
+            margin-top: 0 !important;
+            min-height: calc(100svh - 64px);
+            padding: clamp(42px, 7vh, 76px) 0 clamp(110px, 18vh, 180px);
+            overflow: visible;
+            scroll-margin-top: 64px;
+        }
+
+        #portfolio-content main.page-transition-container > section.resume-scroll-section > div:first-child {
+            position: sticky;
+            top: calc(64px + var(--title-safe-offset, 0px));
+            z-index: 6;
+            min-height: 116px;
+            margin-bottom: 48px !important;
+            padding: 24px 0 32px;
+            background:
+                linear-gradient(
+                    to bottom,
+                    var(--resume-page) 0%,
+                    var(--resume-page) 78%,
+                    rgba(255, 246, 234, 0) 100%
+                );
+            pointer-events: none;
+        }
+
+        #portfolio-content #about > div:first-child,
+        #portfolio-content #experience > div:first-child {
+            margin-bottom: 56px !important;
+        }
+
+        #portfolio-content #skills > div:first-child {
+            margin-bottom: 72px !important;
+        }
+
+        #portfolio-content main.page-transition-container > section.resume-scroll-section#contact {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100svh - 64px);
+            padding-bottom: clamp(42px, 7vh, 76px);
+            text-align: center;
+            transform-origin: center center;
+            will-change: transform, opacity;
+        }
+
+        .section-carry-title {
+            display: block;
+            margin-bottom: 7px;
+            color: #3F3029;
+            font: 800 15px/1.25 ui-monospace, SFMono-Regular, Menlo, monospace;
+            letter-spacing: .08em;
+            opacity: 0;
+            will-change: opacity;
+        }
+
+        .scroll-morph-title {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 45;
+            display: none;
+            margin: 0;
+            color: #3F3029;
+            line-height: 1;
+            white-space: nowrap;
+            pointer-events: none;
+            transform-origin: left top;
+            will-change: transform, opacity;
+        }
+
+        #portfolio-content footer {
+            display: none;
+        }
+
+        @media (max-width: 640px) {
+            #portfolio-content main.page-transition-container > section.resume-scroll-section {
+                min-height: calc(100svh - 64px);
+                padding-top: 36px;
+                padding-bottom: 100px;
+            }
+
+            #portfolio-content main.page-transition-container > section.resume-scroll-section > div:first-child {
+                top: 64px;
+                min-height: 98px;
+                margin-bottom: 36px !important;
+                padding: 18px 0 26px;
+            }
+
+            .scroll-morph-title {
+                max-width: calc(100vw - 32px);
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+            #opening-bookmarks-host { transition: none; }
+
+            #portfolio-content {
+                transition: opacity .18s linear !important;
+            }
+
+            #portfolio-content main.page-transition-container {
+                transition: none !important;
+            }
+
+            .scroll-morph-title {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="opening-locked bg-brand-50 text-stone-900 antialiased selection:bg-brand-100 overflow-x-hidden">
+
+    <!-- OpeningBookmarksSection：由独立文件封装，避免影响简历主体 -->
+    <section id="opening-bookmarks-host" aria-label="个人简历开场">
+        <iframe
+            id="opening-bookmarks-frame"
+            src="components/OpeningBookmarksSection.html"
+            title="互动书签个人简历开场"
+            loading="eager"
+        ></iframe>
+    </section>
+
+    <div id="portfolio-content" inert aria-hidden="true">
+        
+        <!-- 全局导航栏 (Apple 经典毛玻璃) -->
+        <nav class="sticky top-0 z-50 backdrop-blur-md bg-brand-50/70 border-b border-stone-200/50 transition-all duration-300">
+            <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+                <a id="resume-home-link" href="#about" class="text-sm font-semibold tracking-widest uppercase text-stone-900">KE YUAN</a>
+                <div class="language-switcher" role="group" aria-label="Language">
+                    <button type="button" data-language="cn" aria-pressed="true">CN</button>
+                    <span aria-hidden="true">/</span>
+                    <button type="button" data-language="en" aria-pressed="false">EN</button>
+                </div>
+            </div>
+        </nav>
+
+        <main id="page-transition-container" class="page-transition-container max-w-6xl mx-auto px-6 py-20">
+
+            <!-- About Me 三栏精致化区块 -->
+            <section id="about" class="scroll-mt-24">
+                <div class="mb-12 md:mb-16">
+                    <h2 data-i18n="about.title" class="text-3xl md:text-4xl font-light text-stone-900 tracking-tight">About Me</h2>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-12 items-start">
+                    
+                    <!-- 左栏：个人照片与自我介绍 -->
+                    <div class="space-y-6">
+                        <!-- 个人照片占位框 -->
+                        <div class="aspect-[3/4] w-full bg-stone-200/60 rounded-2xl border border-stone-300/40 overflow-hidden shadow-inner flex items-center justify-center">
+                            <svg class="w-12 h-12 text-stone-400 font-light" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                        </div>
+                        <div class="space-y-3">
+                            <h3 data-i18n="about.greeting" class="text-xl font-medium text-stone-900">Hi, I’m 可渊.</h3>
+                            <p data-i18n="about.intro1" class="text-sm text-stone-600 leading-relaxed font-light">
+                                药学专业应届生，具备医院药学部及医药代表实习经历。
+                            </p>
+                            <p data-i18n="about.intro2" class="text-sm text-stone-600 leading-relaxed font-light">
+                                我更擅长围绕具体问题查找资料、梳理信息、理解需求，并将复杂内容整理成清晰可执行的结果。
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- 中栏：Profile、Education、Languages -->
+                    <div class="space-y-8 bg-white p-6 rounded-2xl border border-stone-200/80 shadow-sm">
+                        <!-- Profile -->
+                        <div>
+                            <h4 data-i18n="about.profile.title" class="text-xs font-semibold tracking-wider text-brand-500 uppercase mb-4 border-b border-stone-100 pb-2">Profile</h4>
+                            <div class="space-y-2 text-sm font-light">
+                                <div class="flex justify-between"><span data-i18n="about.profile.birth" class="text-stone-400">Birth</span><span class="text-stone-800">2003</span></div>
+                                <div class="flex justify-between"><span data-i18n="about.profile.genderLabel" class="text-stone-400">Gender</span><span data-i18n="about.profile.gender" class="text-stone-800">Female</span></div>
+                                <div class="flex justify-between"><span data-i18n="about.profile.cityLabel" class="text-stone-400">City</span><span data-i18n="about.profile.city" class="text-stone-800">Zhejiang, China</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Education -->
+                        <div>
+                            <h4 data-i18n="about.education.title" class="text-xs font-semibold tracking-wider text-brand-500 uppercase mb-4 border-b border-stone-100 pb-2">Education</h4>
+                            <div class="space-y-2">
+                                <h5 data-i18n="about.education.school" class="text-sm font-medium text-stone-900">Hangzhou Medical College</h5>
+                                <p data-i18n="about.education.degree" class="text-xs text-stone-400 font-mono">Pharmacy / Bachelor’s Degree</p>
+                                <p data-i18n="about.education.description" class="text-xs text-stone-500 leading-relaxed font-light pt-1">
+                                    杭州医学院药学专业，具备药学专业基础，曾参与医院药学部实习、科研资料整理及医药代表实习。
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Languages -->
+                        <div>
+                            <h4 data-i18n="about.languages.title" class="text-xs font-semibold tracking-wider text-brand-500 uppercase mb-4 border-b border-stone-100 pb-2">Languages</h4>
+                            <div class="space-y-4">
+                                <div>
+                                    <div class="flex justify-between items-baseline">
+                                        <span data-i18n="about.languages.english" class="text-sm font-medium text-stone-900">English</span>
+                                        <span class="text-xs font-mono text-brand-700 bg-brand-100/50 px-1.5 py-0.5 rounded">CET-6: 424</span>
+                                    </div>
+                                    <p data-i18n="about.languages.englishLevel" class="text-xs text-stone-500 font-light mt-0.5">Basic reading & communication</p>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between items-baseline">
+                                        <span data-i18n="about.languages.korean" class="text-sm font-medium text-stone-900">Korean</span>
+                                        <span data-i18n="about.languages.koreanBadge" class="text-xs text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/40">Beginner</span>
+                                    </div>
+                                    <p data-i18n="about.languages.koreanLevel" class="text-xs text-stone-500 font-light mt-0.5">Self-learning with a 477-day Duolingo streak</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右栏：Currently 与 Interests -->
+                    <div class="space-y-6">
+                        <!-- Currently Card -->
+                        <div class="bg-white p-6 rounded-2xl border border-stone-200/80 shadow-sm">
+                            <h4 data-i18n="about.currently.title" class="text-xs font-semibold tracking-wider text-brand-500 uppercase mb-4 border-b border-stone-100 pb-2">Currently</h4>
+                            <ul class="space-y-3 text-xs font-light text-stone-600 leading-relaxed">
+                                <li class="flex items-start gap-2.5">
+                                    <span class="w-1.5 h-1.5 bg-stone-400 rounded-full mt-1.5 shrink-0"></span>
+                                    <span data-i18n="about.currently.items.0">Building my personal resume website</span>
+                                </li>
+                                <li class="flex items-start gap-2.5">
+                                    <span class="w-1.5 h-1.5 bg-stone-400 rounded-full mt-1.5 shrink-0"></span>
+                                    <span data-i18n="about.currently.items.1">Learning AI-assisted workflows</span>
+                                </li>
+                                <li class="flex items-start gap-2.5">
+                                    <span class="w-1.5 h-1.5 bg-stone-400 rounded-full mt-1.5 shrink-0"></span>
+                                    <span data-i18n="about.currently.items.2">Improving my information research and communication skills</span>
+                                </li>
+                                <li class="flex items-start gap-2.5">
+                                    <span class="w-1.5 h-1.5 bg-stone-400 rounded-full mt-1.5 shrink-0"></span>
+                                    <span data-i18n="about.currently.items.3">Exploring healthcare, product operation and cross-border business</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <!-- Interests Card -->
+                        <div class="bg-brand-100/40 p-6 rounded-2xl border border-stone-200/60 shadow-sm">
+                            <h4 data-i18n="about.interests.title" class="text-xs font-semibold tracking-wider text-brand-700 uppercase mb-4 border-b border-stone-200/20 pb-2">Interests</h4>
+                            <ul class="space-y-3 text-xs font-light text-stone-700">
+                                <li class="flex items-center gap-2.5">
+                                    <span class="w-1 h-1 bg-stone-400 rounded-full"></span>
+                                    <span data-i18n="about.interests.items.0">Medical information research</span>
+                                </li>
+                                <li class="flex items-center gap-2.5">
+                                    <span class="w-1 h-1 bg-stone-400 rounded-full"></span>
+                                    <span data-i18n="about.interests.items.1">Product experience</span>
+                                </li>
+                                <li class="flex items-center gap-2.5">
+                                    <span class="w-1 h-1 bg-stone-400 rounded-full"></span>
+                                    <span data-i18n="about.interests.items.2">Cross-border platforms</span>
+                                </li>
+                                <li class="flex items-center gap-2.5">
+                                    <span class="w-1 h-1 bg-stone-400 rounded-full"></span>
+                                    <span data-i18n="about.interests.items.3">User needs and service experience</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- 01 / Skills 区域 (物理风琴叠放) -->
+            <section id="skills" class="scroll-mt-24">
+                <div class="mb-12 md:mb-16">
+                    <h2 data-i18n="skills.title" class="text-3xl md:text-4xl font-light text-stone-900 tracking-tight">Skills</h2>
+                    <p data-i18n="skills.instruction" class="text-xs text-stone-400 font-light mt-2">移动鼠标经过文件夹耳仔切换内容；当前项会稳定保持在最前层。</p>
+                </div>
+
+                <!-- 四层文件夹叠放；点击耳仔后重新排序并锁定 -->
+                <div class="folder-container relative w-full max-w-4xl mx-auto h-[480px] pt-12">
+                    
+                    <!-- 文件夹 1：奶油杏粉 (#F3D6CC) -->
+                    <div id="skill-panel-1" class="folder-stack-item rounded-2xl rounded-tl-none p-8 flex flex-col justify-between" role="group" aria-label="01 / RESEARCH" style="--folder-color: #F3D6CC; background-color: var(--folder-color); z-index: 10; top: 0px;">
+                        <div class="absolute top-0 left-0 -translate-y-full h-9 w-[24%] rounded-t-2xl flex items-center justify-center" style="background-color: var(--folder-color);">
+                            <span data-i18n="skills.items.0.tab" class="text-[10px] font-mono font-medium text-stone-600 tracking-wider">01 / RESEARCH</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start pt-4">
+                            <div>
+                                <h3 data-i18n="skills.items.0.title" class="text-xl font-bold text-stone-900 mb-4">医学信息获取与文献检索</h3>
+                                <p data-i18n="skills.items.0.description" class="text-sm text-stone-700 leading-relaxed font-light">熟练运用 PubMed、CNKI、万方等结构化学术数据库，精准设计检索策略，快速高效检索、筛选并深度分析中英文药学及临床文献，具备极强的学术资料提炼与规范化整理能力。</p>
+                            </div>
+                            <div class="bg-white/40 p-5 rounded-xl border border-black/5">
+                                <span data-i18n="skills.outcomeLabel" class="text-[10px] text-stone-500 block uppercase tracking-wider font-semibold mb-2">核心实践成果</span>
+                                <p data-i18n="skills.items.0.outcome" class="text-xs text-stone-800 leading-relaxed font-light">在药剂科实习中，成功辅助临床药师阅读与筛选乳汁中特定高危药物浓度测定相关的数十篇中英文核心文献，提炼出色谱分离及前处理核心条件。</p>
+                            </div>
+                        </div>
+                        <div data-i18n="skills.items.0.reference" class="border-t border-black/5 pt-4 text-[10px] text-stone-500 font-mono">FILE REFERENCE: INDEX-01</div>
+                    </div>
+
+                    <!-- 文件夹 2：浅米白 (#F7F2EB) -->
+                    <div id="skill-panel-2" class="folder-stack-item rounded-2xl p-8 flex flex-col justify-between" role="group" aria-label="02 / ANALYSIS" style="--folder-color: #F7F2EB; background-color: var(--folder-color); z-index: 20; top: 55px;">
+                        <div class="absolute top-0 left-[25%] h-9 w-[24%] -translate-y-full rounded-t-2xl flex items-center justify-center" style="background-color: var(--folder-color);">
+                            <span data-i18n="skills.items.1.tab" class="text-[10px] font-mono font-medium text-stone-600 tracking-wider">02 / ANALYSIS</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start pt-4">
+                            <div>
+                                <h3 data-i18n="skills.items.1.title" class="text-xl font-bold text-stone-900 mb-4">产品理解与竞品分析</h3>
+                                <p data-i18n="skills.items.1.description" class="text-sm text-stone-700 leading-relaxed font-light">能快速剖析医药及跨界产品核心卖点。能够基于多维学术模型建立系统化的对标分析矩阵，敏锐捕捉治疗领域及商业模式下的转化机会与痛点解决方案。</p>
+                            </div>
+                            <div class="bg-black/5 p-5 rounded-xl border border-black/5">
+                                <span data-i18n="skills.outcomeLabel" class="text-[10px] text-stone-500 block uppercase tracking-wider font-semibold mb-2">核心实践成果</span>
+                                <p data-i18n="skills.items.1.outcome" class="text-xs text-stone-800 leading-relaxed font-light">针对自研核心制药管线与市场主要对标竞品，在适应症、作用机制、起效时间、价格、指南推荐等多维度建立竞争全景对标拆解图谱。</p>
+                            </div>
+                        </div>
+                        <div data-i18n="skills.items.1.reference" class="border-t border-black/5 pt-4 text-[10px] text-stone-500 font-mono">FILE REFERENCE: INDEX-02</div>
+                    </div>
+
+                    <!-- 文件夹 3：浅雾蓝 (#DCE8F2) -->
+                    <div id="skill-panel-3" class="folder-stack-item rounded-2xl p-8 flex flex-col justify-between" role="group" aria-label="03 / INSIGHT" style="--folder-color: #DCE8F2; background-color: var(--folder-color); z-index: 30; top: 110px;">
+                        <div class="absolute top-0 left-[50%] h-9 w-[24%] -translate-y-full rounded-t-2xl flex items-center justify-center" style="background-color: var(--folder-color);">
+                            <span data-i18n="skills.items.2.tab" class="text-[10px] font-mono font-medium text-stone-600 tracking-wider">03 / INSIGHT</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start pt-4">
+                            <div>
+                                <h3 data-i18n="skills.items.2.title" class="text-xl font-bold text-stone-900 mb-4">用户需求理解与沟通推进</h3>
+                                <p data-i18n="skills.items.2.description" class="text-sm text-stone-700 leading-relaxed font-light">具备高水平的同理心与高情商沟通技巧。能自如应对多情景交流（如医生、患者、家属、外商等），精准捕获核心利益点，并将复杂的冲突痛点高效转化为系统性迭代方向。</p>
+                            </div>
+                            <div class="bg-white/40 p-5 rounded-xl border border-black/5">
+                                <span data-i18n="skills.outcomeLabel" class="text-[10px] text-stone-500 block uppercase tracking-wider font-semibold mb-2">核心实践成果</span>
+                                <p data-i18n="skills.items.2.outcome" class="text-xs text-stone-800 leading-relaxed font-light">在三甲医院临床科室调研、跨境交易纠纷沟通、家校服务回访等多场景中，独立承接高频沟通任务，多次达成零客诉与长期粘性信任网构建。</p>
+                            </div>
+                        </div>
+                        <div data-i18n="skills.items.2.reference" class="border-t border-black/5 pt-4 text-[10px] text-stone-500 font-mono">FILE REFERENCE: INDEX-03</div>
+                    </div>
+
+                    <!-- 文件夹 4：烟熏暖灰 (#E8DED4) -->
+                    <div id="skill-panel-4" class="folder-stack-item is-active rounded-2xl rounded-tr-none p-8 flex flex-col justify-between" role="group" aria-label="04 / DIGITAL" style="--folder-color: #E8DED4; background-color: var(--folder-color); z-index: 40; top: 165px;">
+                        <div class="absolute top-0 left-[75%] h-9 w-[24%] -translate-y-full rounded-t-2xl flex items-center justify-center" style="background-color: var(--folder-color);">
+                            <span data-i18n="skills.items.3.tab" class="text-[10px] font-mono font-medium text-stone-600 tracking-wider">04 / DIGITAL</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start pt-4">
+                            <div>
+                                <h3 data-i18n="skills.items.3.title" class="text-xl font-bold text-stone-900 mb-4">跨境信息获取与数字化工具</h3>
+                                <p data-i18n="skills.items.3.description" class="text-xs text-stone-700 leading-relaxed font-light">具备流畅的英文沟通沟通和跨境检索检索能力，能独立核对国际物流、多平台比价并辨别海外商户可信度；深度将 AIGC 提效工具（ChatGPT、Gemini 等）融入日常研究、内容开发及网站设计，掌握高阶 Prompt 工程技巧。</p>
+                            </div>
+                            <div class="bg-white/40 p-5 rounded-xl border border-black/5">
+                                <span data-i18n="skills.outcomeLabel" class="text-[10px] text-stone-500 block uppercase tracking-wider font-semibold mb-2">核心实践成果</span>
+                                <p data-i18n="skills.items.3.outcome" class="text-xs text-stone-800 leading-relaxed font-light">在几乎零编程基础下，完全利用 AI 协同自主搭建、开发并优化了当前您看到的这套具备复杂物理拟真交互的高级个人作品网站。</p>
+                            </div>
+                        </div>
+                        <div data-i18n="skills.items.3.reference" class="border-t border-black/5 pt-4 text-[10px] text-stone-500 font-mono">FILE REFERENCE: INDEX-04</div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- 02 / Work Experience 区域 -->
+            <section id="experience" class="scroll-mt-24">
+                <div class="mb-12 md:mb-16">
+                    <h2 data-i18n="experience.title" class="text-3xl md:text-4xl font-light text-stone-900 tracking-tight">Work Experience</h2>
+                </div>
+
+                <div class="flex flex-col md:flex-row gap-12">
+                    <!-- 左侧导航 -->
+                    <div class="md:w-1/3 flex flex-col space-y-4">
+                        <div onmouseover="switchWork('exp1')" class="cursor-pointer group border-l-2 border-stone-200 pl-4 hover:border-brand-500 transition-colors py-1">
+                            <span data-i18n="experience.sidebar.exp1.date" class="text-xs font-mono text-stone-400">2026.05 - Present</span>
+                            <h3 data-i18n="experience.sidebar.exp1.company" class="text-lg font-medium text-stone-900 group-hover:text-brand-700 transition-colors">沈阳三生制药</h3>
+                        </div>
+                        <div onmouseover="switchWork('exp2')" class="cursor-pointer group border-l-2 border-stone-200 pl-4 hover:border-brand-500 transition-colors py-1">
+                            <span data-i18n="experience.sidebar.exp2.date" class="text-xs font-mono text-stone-400">2025.09 - 2026.04</span>
+                            <h3 data-i18n="experience.sidebar.exp2.company" class="text-lg font-medium text-stone-900 group-hover:text-brand-700 transition-colors">浙大附属妇产科医院</h3>
+                        </div>
+                        <div onmouseover="switchWork('exp3')" class="cursor-pointer group border-l-2 border-stone-200 pl-4 hover:border-brand-500 transition-colors py-1">
+                            <span data-i18n="experience.sidebar.exp3.date" class="text-xs font-mono text-stone-400">2023.11 - 2024.02</span>
+                            <h3 data-i18n="experience.sidebar.exp3.company" class="text-lg font-medium text-stone-900 group-hover:text-brand-700 transition-colors">浙大附属明州医院</h3>
+                        </div>
+                        <div onmouseover="switchWork('exp4')" class="cursor-pointer group border-l-2 border-stone-200 pl-4 hover:border-brand-500 transition-colors py-1">
+                            <span data-i18n="experience.sidebar.exp4.date" class="text-xs font-mono text-stone-400">2024.05 - 2024.08</span>
+                            <h3 data-i18n="experience.sidebar.exp4.company" class="text-lg font-medium text-stone-900 group-hover:text-brand-700 transition-colors">英孚教育</h3>
+                        </div>
+                    </div>
+
+                    <!-- 右侧细节内容展示区 -->
+                    <div class="md:w-2/3 min-h-[360px] bg-white border border-stone-200/60 p-8 rounded-2xl shadow-sm flex items-start">
+                        <div id="content-display" class="exp-pane opacity-100 transform translate-y-0 w-full">
+                            <h3 id="c-title" data-i18n="experience.placeholderTitle" class="text-2xl font-light text-stone-900 mb-6">请移动鼠标至左侧单位</h3>
+                            <div id="c-body" data-i18n="experience.placeholderBody" class="text-stone-600 leading-relaxed text-sm space-y-4">
+                                通过悬停查看各实习阶段的详细产出与专业贡献。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 04 / Contact 区域 -->
+            <section id="contact" class="py-24 text-center scroll-mt-24">
+                <h2 data-i18n="contact.title" class="text-3xl font-light text-stone-900 mb-10 tracking-tight">Contact Me</h2>
+                
+                <div class="flex flex-col items-center gap-8">
+                    <!-- 电话子项 -->
+                    <div onclick="copyText('189-5781-4855')" class="cursor-pointer group flex flex-col items-center gap-1.5 transition-transform duration-300 active:scale-95">
+                        <span class="text-2xl font-light text-stone-800 group-hover:text-brand-700 transition-colors tracking-wide">189-5781-4855</span>
+                        <span data-i18n="contact.phoneHint" class="text-[10px] font-mono text-stone-400 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity duration-300">Click to Copy 电话</span>
+                    </div>
+                    
+                    <!-- 邮箱子项 -->
+                    <div onclick="copyText('1046116546@qq.com')" class="cursor-pointer group flex flex-col items-center gap-1.5 transition-transform duration-300 active:scale-95">
+                        <span class="text-2xl font-light text-stone-800 group-hover:text-brand-700 transition-colors tracking-wide">1046116546@qq.com</span>
+                        <span data-i18n="contact.emailHint" class="text-[10px] font-mono text-stone-400 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity duration-300">Click to Copy 邮箱</span>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- 全局轻量页脚 -->
+        <footer data-i18n="footer" class="border-t border-stone-200/60 py-8 text-center text-xs font-mono text-stone-400">
+            &copy; 2026 Ke Yuan. Designed with Apple Aesthetics.
+        </footer>
+
+    </div>
+
+    <!-- OpeningBookmarksSection 与简历主体的桥接逻辑 -->
+    <script>
+        const openingHost = document.getElementById('opening-bookmarks-host');
+        const openingFrame = document.getElementById('opening-bookmarks-frame');
+        const portfolioContent = document.getElementById('portfolio-content');
+        const transitionContainer = document.getElementById('page-transition-container');
+        const resumeSections = Array.from(transitionContainer.querySelectorAll(':scope > section'));
+        const resumeHomeLink = document.getElementById('resume-home-link');
+        let enteringAbout = false;
+        let resumeStarted = false;
+        let morphFrame = null;
+        let currentHash = '';
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+        let activeWorkId = null;
+        let workSwitchTimer = null;
+        let languageSwapTimer = null;
+        let languageFadeTimer = null;
+
+        const content = {
+            cn: {
+                about: {
+                    title: 'About Me',
+                    greeting: '你好，我是可渊。',
+                    intro1: '药学专业应届生，具备医院药学部及医药代表实习经历。',
+                    intro2: '我更擅长围绕具体问题查找资料、梳理信息、理解需求，并将复杂内容整理成清晰可执行的结果。',
+                    profile: {
+                        title: 'Profile',
+                        birth: '出生年份',
+                        genderLabel: '性别',
+                        gender: '女',
+                        cityLabel: '城市',
+                        city: '浙江，中国'
+                    },
+                    education: {
+                        title: 'Education',
+                        school: '杭州医学院',
+                        degree: '药学 / 本科',
+                        description: '具备药学专业基础，曾参与医院药学部实习、科研资料整理及医药代表实习。'
+                    },
+                    currently: {
+                        title: 'Currently',
+                        items: [
+                            '正在搭建个人简历网站',
+                            '学习 AI 辅助工作流',
+                            '提升信息检索、资料整理与沟通能力',
+                            '探索医药、产品运营与外贸/跨境相关领域'
+                        ]
+                    },
+                    interests: {
+                        title: 'Interests',
+                        items: [
+                            '医学信息整理',
+                            '产品体验',
+                            '跨境平台',
+                            '用户需求与服务体验'
+                        ]
+                    },
+                    languages: {
+                        title: 'Languages',
+                        english: '英语',
+                        englishLevel: '基础阅读与沟通',
+                        korean: '韩语',
+                        koreanBadge: '初学者',
+                        koreanLevel: '多邻国连续打卡 477 天'
+                    }
+                },
+                skills: {
+                    title: 'Skills',
+                    instruction: '移动鼠标经过文件夹标签切换内容；当前项会稳定保持在最前层。',
+                    outcomeLabel: '核心实践成果',
+                    items: [
+                        {
+                            tab: '01 / RESEARCH',
+                            reference: '文件索引：INDEX-01',
+                            title: '医学信息获取与文献检索',
+                            description: '熟练运用 PubMed、CNKI、万方等结构化学术数据库，能够设计检索策略，高效检索、筛选并分析中英文药学及临床文献，具备学术资料提炼与规范化整理能力。',
+                            outcome: '在药剂科实习中，协助临床药师阅读和筛选乳汁中特定药物浓度测定相关的中英文文献，并提炼色谱分离及前处理等核心条件。'
+                        },
+                        {
+                            tab: '02 / ANALYSIS',
+                            reference: '文件索引：INDEX-02',
+                            title: '产品理解与竞品分析',
+                            description: '能够从产品特点与实际应用场景出发建立对标分析框架，比较关键差异，并提炼产品优势、潜在机会与用户痛点。',
+                            outcome: '围绕适应症、作用机制、起效时间、价格、医保、不良反应及指南推荐等维度，对药品与主要竞品进行系统比较。'
+                        },
+                        {
+                            tab: '03 / INSIGHT',
+                            reference: '文件索引：INDEX-03',
+                            title: '用户需求理解与沟通推进',
+                            description: '能够根据沟通对象、使用场景与潜在需求判断关注重点，通过提问与反馈确认关键信息，并将复杂问题整理为可推进的行动方向。',
+                            outcome: '在临床沟通、跨境交易与家校服务等场景中积累需求判断和沟通经验，能够根据反馈持续调整表达与服务方式。'
+                        },
+                        {
+                            tab: '04 / DIGITAL',
+                            reference: '文件索引：INDEX-04',
+                            title: '跨境信息获取与数字化工具',
+                            description: '具备基础英文交易沟通与跨境信息检索能力，能够核对库存、价格、物流和支付信息；同时使用 AI 工具辅助资料整理、内容优化、需求梳理与网站规划。',
+                            outcome: '通过教程检索、AI 协作与实际操作，自主完成当前个人简历网站的规划、搭建与持续优化。'
+                        }
+                    ]
+                },
+                experience: {
+                    title: 'Work Experience',
+                    placeholderTitle: '请移动鼠标至左侧单位',
+                    placeholderBody: '通过悬停查看各实习阶段的详细工作内容与能力积累。',
+                    sidebar: {
+                        exp1: { date: '2026.05 - 至今', company: '沈阳三生制药' },
+                        exp2: { date: '2025.09 - 2026.04', company: '浙大附属妇产科医院' },
+                        exp3: { date: '2023.11 - 2024.02', company: '浙大附属明州医院' },
+                        exp4: { date: '2024.05 - 2024.08', company: '英孚教育' }
+                    },
+                    items: {
+                        exp1: {
+                            title: '医药代表（实习生）｜沈阳三生制药',
+                            body: '• <strong>多科室合规学术调研</strong>：跟随带教拜访血液科、放化疗科、胸外科等临床科室，了解不同科室的诊疗流程、患者情况和用药场景，并整理医生对相关产品的临床关注点与反馈。<br><br>• <strong>竞品分析与沟通复盘</strong>：从适应症、作用机制、起效时间、价格、医保、不良反应和指南推荐等维度进行竞品对比；参与情景演练、医生沟通及拜访复盘，提升产品学习、信息获取与现场应变能力。'
+                        },
+                        exp2: {
+                            title: '药剂科实习生｜浙大附属妇产科医院',
+                            body: '• <strong>科研资料与数据整理</strong>：在临床教学药师指导下参与治疗药物监测相关资料整理，协助规范化整理实验和患者相关信息，重视数据准确性与可追溯性。<br><br>• <strong>医学文献检索</strong>：使用中英文数据库及 AI 工具辅助检索、筛选并阅读药学文献，提取与药物浓度测定相关的技术参数和实验条件，提升科研信息检索与资料归纳效率。'
+                        },
+                        exp3: {
+                            title: '药剂科轮岗实习｜浙大附属明州医院',
+                            body: '• <strong>药品与库存管理</strong>：在门诊药房、住院药房轮岗，参与药品分类陈列、近效期管理、特殊及高危药品分级管理和库房盘点。<br><br>• <strong>处方调剂与复核</strong>：学习使用医院信息系统，协助完成处方调剂、核对和发药流程，在高频工作场景中保持专注与操作准确性。'
+                        },
+                        exp4: {
+                            title: '英文教学助教（实习生）｜英孚教育',
+                            body: '• <strong>跨文化课堂协作</strong>：配合外籍教师开展全英文互动教学，协助课堂秩序管理、多媒体设备调试和互动活动设计。<br><br>• <strong>家校沟通与服务</strong>：记录学员课堂表现并向家长反馈学习情况，理解家长关注点，协助教师将反馈转化为后续教学调整方向。'
+                        }
+                    }
+                },
+                contact: {
+                    title: 'Contact Me',
+                    phoneHint: '点击复制电话',
+                    emailHint: '点击复制邮箱',
+                    copied: '已复制'
+                },
+                footer: '© 2026 Ke Yuan. 个人简历网站。'
+            },
+            en: {
+                about: {
+                    title: 'About Me',
+                    greeting: 'Hi, I’m Ke Yuan.',
+                    intro1: 'Pharmacy graduate with internship experience in a hospital pharmacy department and medical representative role.',
+                    intro2: 'I am good at researching information, organizing scattered materials, understanding needs, and turning complex content into clear and actionable outputs.',
+                    profile: {
+                        title: 'Profile',
+                        birth: 'Birth',
+                        genderLabel: 'Gender',
+                        gender: 'Female',
+                        cityLabel: 'City',
+                        city: 'Zhejiang, China'
+                    },
+                    education: {
+                        title: 'Education',
+                        school: 'Hangzhou Medical College',
+                        degree: 'Pharmacy / Bachelor’s Degree',
+                        description: 'With a pharmacy background, I have experience in hospital pharmacy practice, research material organization, and medical representative internship.'
+                    },
+                    currently: {
+                        title: 'Currently',
+                        items: [
+                            'Building my personal resume website',
+                            'Learning AI-assisted workflows',
+                            'Improving my information research and communication skills',
+                            'Exploring healthcare, product operation and cross-border business'
+                        ]
+                    },
+                    interests: {
+                        title: 'Interests',
+                        items: [
+                            'Medical information research',
+                            'Product experience',
+                            'Cross-border platforms',
+                            'User needs and service experience'
+                        ]
+                    },
+                    languages: {
+                        title: 'Languages',
+                        english: 'English',
+                        englishLevel: 'Basic reading & communication',
+                        korean: 'Korean',
+                        koreanBadge: 'Beginner',
+                        koreanLevel: '477-day Duolingo streak'
+                    }
+                },
+                skills: {
+                    title: 'Skills',
+                    instruction: 'Move across the folder tabs to switch content; the current folder stays securely in front.',
+                    outcomeLabel: 'Key Practice',
+                    items: [
+                        {
+                            tab: '01 / RESEARCH',
+                            reference: 'FILE REFERENCE: INDEX-01',
+                            title: 'Medical Information Research',
+                            description: 'Skilled in using PubMed, CNKI and other structured academic databases to design search strategies, screen Chinese and English medical literature, and organize findings into clear, standardized materials.',
+                            outcome: 'During my hospital pharmacy internship, I supported the review of literature on drug concentration measurement in breast milk and extracted key chromatographic and sample-preparation conditions.'
+                        },
+                        {
+                            tab: '02 / ANALYSIS',
+                            reference: 'FILE REFERENCE: INDEX-02',
+                            title: 'Product Understanding & Competitor Analysis',
+                            description: 'Able to build comparison frameworks around product features and real-world use cases, identify meaningful differences, and summarize product strengths, opportunities and user pain points.',
+                            outcome: 'Compared pharmaceutical products across indications, mechanisms, onset time, dosage, price, reimbursement, adverse effects and guideline recommendations.'
+                        },
+                        {
+                            tab: '03 / INSIGHT',
+                            reference: 'FILE REFERENCE: INDEX-03',
+                            title: 'User Needs & Communication',
+                            description: 'Able to identify priorities based on the audience and use case, confirm key information through questions and feedback, and turn complex issues into practical next steps.',
+                            outcome: 'Built needs-assessment and communication experience across clinical conversations, cross-border transactions and education service scenarios.'
+                        },
+                        {
+                            tab: '04 / DIGITAL',
+                            reference: 'FILE REFERENCE: INDEX-04',
+                            title: 'Cross-border Research & Digital Tools',
+                            description: 'Capable of basic English transaction communication and cross-border research, including inventory, pricing, logistics and payment checks. I also use AI tools for research, content refinement, requirements analysis and website planning.',
+                            outcome: 'Planned, built and continuously improved this personal resume website through tutorials, AI-assisted workflows and hands-on experimentation.'
+                        }
+                    ]
+                },
+                experience: {
+                    title: 'Work Experience',
+                    placeholderTitle: 'Hover over an organization',
+                    placeholderBody: 'Explore the responsibilities, outputs and skills developed during each internship.',
+                    sidebar: {
+                        exp1: { date: '2026.05 - Present', company: '3SBio, Shenyang' },
+                        exp2: { date: '2025.09 - 2026.04', company: "Women’s Hospital, Zhejiang University" },
+                        exp3: { date: '2023.11 - 2024.02', company: 'Mingzhou Hospital, Zhejiang University' },
+                        exp4: { date: '2024.05 - 2024.08', company: 'EF Education First' }
+                    },
+                    items: {
+                        exp1: {
+                            title: 'Medical Representative Intern | 3SBio',
+                            body: '• <strong>Compliant multi-department field research</strong>: Joined visits to hematology, radiotherapy, chemotherapy and thoracic surgery departments to understand care pathways, patient profiles and medication scenarios, then organized physicians’ feedback and clinical priorities.<br><br>• <strong>Competitor analysis and visit review</strong>: Compared products across indications, mechanisms, onset time, pricing, reimbursement, adverse effects and guideline recommendations. Participated in role plays, physician communication and post-visit reviews.'
+                        },
+                        exp2: {
+                            title: 'Pharmacy Department Intern | Women’s Hospital, Zhejiang University',
+                            body: '• <strong>Research materials and data organization</strong>: Supported therapeutic drug monitoring–related work under the guidance of clinical pharmacy instructors, organizing experimental and patient-related information with attention to accuracy and traceability.<br><br>• <strong>Medical literature research</strong>: Used Chinese and English databases and AI-assisted tools to search, screen and review pharmacy literature, extracting technical parameters and experimental conditions related to drug concentration measurement.'
+                        },
+                        exp3: {
+                            title: 'Pharmacy Rotation Intern | Mingzhou Hospital, Zhejiang University',
+                            body: '• <strong>Medication and inventory management</strong>: Rotated through outpatient and inpatient pharmacies, supporting medication classification, near-expiry monitoring, tiered management of special and high-alert medicines, and inventory checks.<br><br>• <strong>Prescription dispensing and verification</strong>: Learned to use the hospital information system and assisted with prescription dispensing, verification and medication handover while maintaining accuracy in a high-volume environment.'
+                        },
+                        exp4: {
+                            title: 'English Teaching Assistant Intern | EF Education First',
+                            body: '• <strong>Cross-cultural classroom collaboration</strong>: Supported international teachers in English-language classes, classroom management, multimedia setup and interactive activity design.<br><br>• <strong>Parent communication and service</strong>: Recorded learner performance, shared progress with parents, identified their priorities and helped translate feedback into teaching adjustments.'
+                        }
+                    }
+                },
+                contact: {
+                    title: 'Contact Me',
+                    phoneHint: 'Click to copy phone',
+                    emailHint: 'Click to copy email',
+                    copied: 'Copied'
+                },
+                footer: '© 2026 Ke Yuan. Personal resume website.'
+            }
+        };
+
+        function getStoredLanguage() {
+            try {
+                const savedLanguage = localStorage.getItem('resume-language');
+                return savedLanguage === 'en' ? 'en' : 'cn';
+            } catch (error) {
+                return 'cn';
+            }
+        }
+
+        let currentLanguage = getStoredLanguage();
+
+        function getContentValue(source, path) {
+            return path.split('.').reduce((value, key) => value?.[key], source);
+        }
+
+        function renderLanguageContent() {
+            const languageContent = content[currentLanguage];
+            document.documentElement.lang = currentLanguage === 'cn' ? 'zh-CN' : 'en';
+
+            document.querySelectorAll('[data-i18n]').forEach((element) => {
+                const value = getContentValue(languageContent, element.dataset.i18n);
+                if (typeof value === 'string') element.textContent = value;
+            });
+
+            document.querySelectorAll('[data-language]').forEach((button) => {
+                const isCurrent = button.dataset.language === currentLanguage;
+                button.setAttribute('aria-pressed', String(isCurrent));
+            });
+
+            languageContent.skills.items.forEach((item, index) => {
+                const panel = document.getElementById(`skill-panel-${index + 1}`);
+                if (!panel) return;
+                panel.setAttribute('aria-label', item.tab);
+                panel.firstElementChild?.setAttribute(
+                    'aria-label',
+                    currentLanguage === 'cn' ? `查看技能 ${item.tab}` : `View skill ${item.tab}`
+                );
+            });
+
+            titleMorphs.forEach(({ sourceTitle, targetLabel, clone }) => {
+                const title = sourceTitle.textContent.trim();
+                targetLabel.textContent = title;
+                clone.textContent = title;
+            });
+
+            if (activeWorkId) {
+                switchWork(activeWorkId, true);
+            }
+
+            try {
+                localStorage.setItem('resume-language', currentLanguage);
+            } catch (error) {
+                // file:// 或隐私模式限制存储时，当前页面切换仍然可用。
+            }
+
+            scheduleScrollLinkedUpdate();
+        }
+
+        function setLanguage(language, animate = true) {
+            if (!content[language]) return;
+            currentLanguage = language;
+            clearTimeout(languageSwapTimer);
+            clearTimeout(languageFadeTimer);
+
+            if (!animate || prefersReducedMotion.matches) {
+                portfolioContent.classList.remove('is-language-switching');
+                renderLanguageContent();
+                return;
+            }
+
+            portfolioContent.classList.add('is-language-switching');
+            languageSwapTimer = window.setTimeout(renderLanguageContent, 90);
+            languageFadeTimer = window.setTimeout(() => {
+                portfolioContent.classList.remove('is-language-switching');
+            }, 220);
+        }
+
+        function sectionTitle(section) {
+            return section.id === 'contact'
+                ? section.querySelector(':scope > h2')
+                : section.querySelector(':scope > div:first-child h2');
+        }
+
+        const titleMotionConfig = {
+            about: {
+                animationRange: [.20, .90],
+                minScale: .44,
+                mobileMinScale: .50,
+                safeOffset: 0,
+                zIndex: 45
+            },
+            skills: {
+                animationRange: [.18, .90],
+                minScale: .44,
+                mobileMinScale: .50,
+                safeOffset: 2,
+                zIndex: 45
+            },
+            experience: {
+                animationRange: [.48, .94],
+                minScale: .70,
+                mobileMinScale: .76,
+                safeOffset: 2,
+                zIndex: 44,
+                specialTransition: 'fade-before-contact'
+            },
+            contact: {
+                viewportRange: [1.20, .30],
+                initialTranslateY: 160,
+                mobileInitialTranslateY: 90,
+                minScale: .58,
+                mobileMinScale: .70,
+                midpoint: {
+                    progress: .55,
+                    opacity: .60,
+                    translateY: 60,
+                    scale: .80
+                },
+                safeOffset: 0,
+                zIndex: 43,
+                specialTransition: 'bottom-up'
+            }
+        };
+
+        resumeSections.forEach((section) => {
+            section.classList.add('resume-scroll-section');
+            const header = section.id === 'contact' ? null : section.querySelector(':scope > div:first-child');
+            const safeOffset = titleMotionConfig[section.id]?.safeOffset || 0;
+            if (header) header.style.setProperty('--title-safe-offset', `${safeOffset}px`);
+        });
+
+        const titleMorphs = resumeSections.slice(0, -1).map((section, index) => {
+            const nextSection = resumeSections[index + 1];
+            if (nextSection.id === 'contact') return null;
+
+            const sourceTitle = sectionTitle(section);
+            const targetHeading = sectionTitle(nextSection);
+            const targetLabel = document.createElement('span');
+            targetLabel.className = 'section-carry-title';
+            targetLabel.textContent = sourceTitle.textContent.trim();
+            targetHeading.before(targetLabel);
+
+            const clone = document.createElement('span');
+            clone.className = 'scroll-morph-title';
+            clone.textContent = sourceTitle.textContent.trim();
+            portfolioContent.appendChild(clone);
+
+            return {
+                section,
+                nextSection,
+                sourceTitle,
+                targetLabel,
+                clone,
+                config: titleMotionConfig[section.id]
+            };
+        }).filter(Boolean);
+
+        document.querySelectorAll('[data-language]').forEach((button) => {
+            button.addEventListener('click', () => {
+                setLanguage(button.dataset.language);
+            });
+        });
+
+        setLanguage(currentLanguage, false);
+
+        function clamp(value, min = 0, max = 1) {
+            return Math.min(max, Math.max(min, value));
+        }
+
+        function lerp(from, to, progress) {
+            return from + (to - from) * progress;
+        }
+
+        function sectionTop(section) {
+            return transitionContainer.offsetTop + section.offsetTop;
+        }
+
+        function updateScrollLinkedTitles() {
+            morphFrame = null;
+            if (!resumeStarted) return;
+
+            const scrollTop = portfolioContent.scrollTop;
+            const viewportHeight = portfolioContent.clientHeight;
+            const navHeight = portfolioContent.querySelector('nav')?.offsetHeight || 64;
+            const mobile = window.innerWidth <= 640;
+
+            titleMorphs.forEach(({ section, nextSection, sourceTitle, targetLabel, clone, config }) => {
+                const currentTop = sectionTop(section);
+                const nextTop = sectionTop(nextSection);
+                const sectionDistance = Math.max(1, nextTop - currentTop);
+                const start = currentTop + sectionDistance * config.animationRange[0];
+                const end = currentTop + sectionDistance * config.animationRange[1];
+                const progress = clamp((scrollTop - start) / Math.max(1, end - start));
+                const eased = progress * progress * (3 - 2 * progress);
+                const sourceRect = sourceTitle.getBoundingClientRect();
+                const targetRect = targetLabel.getBoundingClientRect();
+                const sourceStyle = window.getComputedStyle(sourceTitle);
+                const targetStyle = window.getComputedStyle(targetLabel);
+                const sourceSize = parseFloat(sourceStyle.fontSize) || 36;
+                const targetSize = parseFloat(targetStyle.fontSize) || 10;
+                const minScale = mobile ? config.mobileMinScale : config.minScale;
+                const targetScale = clamp(targetSize / sourceSize, minScale, mobile ? .56 : .52);
+                clone.style.zIndex = String(config.zIndex);
+
+                if (prefersReducedMotion.matches) {
+                    clone.style.display = 'none';
+                    sourceTitle.style.opacity = progress < .5 ? '1' : '0';
+                    targetLabel.style.opacity = progress < .5 ? '0' : '.92';
+                } else if (progress <= .001) {
+                    clone.style.display = 'none';
+                    sourceTitle.style.opacity = '1';
+                    targetLabel.style.opacity = '0';
+                } else if (progress >= .999) {
+                    clone.style.display = 'none';
+                    sourceTitle.style.opacity = '0';
+                    targetLabel.style.opacity = '.92';
+                } else {
+                    const x = lerp(sourceRect.left, targetRect.left, eased);
+                    const y = lerp(sourceRect.top, targetRect.top, eased);
+                    const scale = lerp(1, targetScale, eased);
+                    const sourceWeight = parseInt(sourceStyle.fontWeight, 10) || 300;
+
+                    clone.style.display = 'block';
+                    clone.style.fontFamily = sourceStyle.fontFamily;
+                    clone.style.fontSize = sourceStyle.fontSize;
+                    clone.style.fontWeight = String(Math.round(lerp(sourceWeight, 760, eased)));
+                    clone.style.letterSpacing = `${lerp(0, 1.15, eased)}px`;
+                    clone.style.opacity = String(lerp(1, .90, eased));
+                    clone.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
+                    sourceTitle.style.opacity = String(clamp(1 - progress * 8));
+                    targetLabel.style.opacity = String(clamp((progress - .84) / .16) * .92);
+                }
+            });
+
+            const experienceSection = document.getElementById('experience');
+            const contactSection = document.getElementById('contact');
+            const experienceTitle = sectionTitle(experienceSection);
+            const contactTitle = sectionTitle(contactSection);
+            const contactDetails = contactSection.querySelector(':scope > div');
+            const experienceTop = sectionTop(experienceSection);
+            const contactTop = sectionTop(contactSection);
+            const contactConfig = titleMotionConfig.contact;
+            const contactStart = contactTop - viewportHeight * contactConfig.viewportRange[0];
+            const contactEnd = contactTop - viewportHeight * contactConfig.viewportRange[1];
+            const contactProgress = clamp((scrollTop - contactStart) / Math.max(1, contactEnd - contactStart));
+            const contactEased = contactProgress * contactProgress * (3 - 2 * contactProgress);
+            const experienceFade = clamp((contactProgress - .34) / .66);
+
+            if (prefersReducedMotion.matches) {
+                experienceTitle.style.opacity = contactProgress < .5 ? '1' : '0';
+                experienceTitle.style.transform = 'none';
+                contactTitle.style.opacity = contactProgress < .5 ? '0' : '1';
+                contactTitle.style.transform = 'none';
+                contactDetails.style.opacity = contactProgress < .5 ? '0' : '1';
+            } else {
+                experienceTitle.style.opacity = String(1 - experienceFade);
+                experienceTitle.style.transform = `scale(${lerp(1, .72, experienceFade)})`;
+                experienceTitle.style.transformOrigin = 'left top';
+
+                const initialTranslateY = mobile
+                    ? contactConfig.mobileInitialTranslateY
+                    : contactConfig.initialTranslateY;
+                const initialScale = mobile
+                    ? contactConfig.mobileMinScale
+                    : contactConfig.minScale;
+                const midpoint = contactConfig.midpoint;
+                const beforeMidpoint = contactEased <= midpoint.progress;
+                const phaseProgress = beforeMidpoint
+                    ? contactEased / midpoint.progress
+                    : (contactEased - midpoint.progress) / (1 - midpoint.progress);
+                const contactOpacity = beforeMidpoint
+                    ? lerp(0, midpoint.opacity, phaseProgress)
+                    : lerp(midpoint.opacity, 1, phaseProgress);
+                const contactTranslateY = beforeMidpoint
+                    ? lerp(initialTranslateY, midpoint.translateY, phaseProgress)
+                    : lerp(midpoint.translateY, 0, phaseProgress);
+                const contactScale = beforeMidpoint
+                    ? lerp(initialScale, midpoint.scale, phaseProgress)
+                    : lerp(midpoint.scale, 1, phaseProgress);
+
+                contactTitle.style.opacity = String(contactOpacity);
+                contactTitle.style.transform = `translateY(${contactTranslateY}px) scale(${contactScale})`;
+                contactTitle.style.transformOrigin = 'center center';
+                contactDetails.style.opacity = String(clamp((contactProgress - .18) / .82));
+            }
+
+            const marker = scrollTop + viewportHeight * .42;
+            let activeSection = resumeSections[0];
+            resumeSections.forEach((section) => {
+                if (sectionTop(section) <= marker) activeSection = section;
+            });
+            const nextHash = `#${activeSection.id}`;
+            if (nextHash !== currentHash) {
+                currentHash = nextHash;
+                window.history.replaceState(null, '', nextHash);
+            }
+        }
+
+        function scheduleScrollLinkedUpdate() {
+            if (morphFrame === null) {
+                morphFrame = requestAnimationFrame(updateScrollLinkedTitles);
+            }
+        }
+
+        portfolioContent.addEventListener('scroll', scheduleScrollLinkedUpdate, { passive: true });
+        window.addEventListener('resize', scheduleScrollLinkedUpdate);
+
+        resumeHomeLink.addEventListener('click', (event) => {
+            event.preventDefault();
+            if (!resumeStarted) return;
+            portfolioContent.scrollTo({
+                top: 0,
+                behavior: prefersReducedMotion.matches ? 'auto' : 'smooth'
+            });
+        });
+
+        window.addEventListener('message', (event) => {
+            if (
+                enteringAbout ||
+                event.source !== openingFrame.contentWindow ||
+                event.data?.type !== 'opening-bookmarks:enter'
+            ) return;
+
+            enteringAbout = true;
+            openingHost.classList.add('is-entering-about');
+            document.documentElement.classList.remove('opening-locked');
+            document.body.classList.remove('opening-locked');
+            document.documentElement.classList.add('resume-mode');
+            document.body.classList.add('resume-mode');
+            portfolioContent.removeAttribute('inert');
+            portfolioContent.removeAttribute('aria-hidden');
+            portfolioContent.classList.add('resume-active');
+
+            window.setTimeout(() => {
+                openingHost.hidden = true;
+                openingFrame.setAttribute('tabindex', '-1');
+                portfolioContent.scrollTop = 0;
+                resumeStarted = true;
+                enteringAbout = false;
+                updateScrollLinkedTitles();
+            }, 720);
+        });
+
+        // Skills：桌面端鼠标移动切换，点击与键盘作为触屏/无障碍备用
+        const skillContainer = document.querySelector('.folder-container');
+        const skillPanels = Array.from(document.querySelectorAll('.folder-stack-item'));
+        const skillHandles = skillPanels.map((panel) => panel.firstElementChild);
+        let activeSkillIndex = 3;
+        let skillHoverTimer = null;
+
+        function activateSkill(index, moveFocus = false) {
+            if (index === activeSkillIndex && !moveFocus) return;
+            activeSkillIndex = index;
+
+            const inactiveIndexes = skillPanels
+                .map((_, panelIndex) => panelIndex)
+                .filter((panelIndex) => panelIndex !== index);
+
+            skillPanels.forEach((panel, panelIndex) => {
+                const isActive = panelIndex === index;
+                const rank = isActive ? skillPanels.length - 1 : inactiveIndexes.indexOf(panelIndex);
+                panel.style.setProperty('--stack-rank', rank);
+                panel.classList.toggle('is-active', isActive);
+                Array.from(panel.children).slice(1).forEach((content) => {
+                    content.setAttribute('aria-hidden', String(!isActive));
+                });
+            });
+
+            skillHandles.forEach((handle, handleIndex) => {
+                const isActive = handleIndex === index;
+                handle.setAttribute('aria-pressed', String(isActive));
+                if (isActive && moveFocus) handle.focus();
+            });
+        }
+
+        function scheduleSkillFromPointer(event) {
+            if (event.pointerType === 'touch') return;
+
+            const bounds = skillContainer.getBoundingClientRect();
+            const localY = event.clientY - bounds.top;
+            if (localY < -48 || localY > 190) {
+                clearTimeout(skillHoverTimer);
+                return;
+            }
+
+            const localX = Math.max(0, Math.min(bounds.width - 1, event.clientX - bounds.left));
+            const targetIndex = Math.min(
+                skillPanels.length - 1,
+                Math.floor((localX / bounds.width) * skillPanels.length)
+            );
+
+            if (targetIndex === activeSkillIndex) return;
+            clearTimeout(skillHoverTimer);
+            skillHoverTimer = setTimeout(() => activateSkill(targetIndex), 85);
+        }
+
+        skillContainer.addEventListener('pointermove', scheduleSkillFromPointer);
+        skillContainer.addEventListener('pointerleave', () => clearTimeout(skillHoverTimer));
+
+        skillHandles.forEach((handle, index) => {
+            handle.setAttribute('role', 'button');
+            handle.setAttribute('tabindex', '0');
+            handle.setAttribute(
+                'aria-label',
+                currentLanguage === 'cn'
+                    ? `查看技能 ${handle.textContent.trim()}`
+                    : `View skill ${handle.textContent.trim()}`
+            );
+
+            handle.addEventListener('click', (event) => {
+                event.stopPropagation();
+                activateSkill(index);
+            });
+
+            handle.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    activateSkill(index);
+                    return;
+                }
+
+                if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+                event.preventDefault();
+
+                let nextIndex = index;
+                if (event.key === 'ArrowLeft') nextIndex = (index - 1 + skillHandles.length) % skillHandles.length;
+                if (event.key === 'ArrowRight') nextIndex = (index + 1) % skillHandles.length;
+                if (event.key === 'Home') nextIndex = 0;
+                if (event.key === 'End') nextIndex = skillHandles.length - 1;
+                activateSkill(nextIndex, true);
+            });
+        });
+
+        activeSkillIndex = -1;
+        activateSkill(3);
+
+        // 3. Work Experience 悬停切换逻辑
+        function switchWork(id, immediate = false) {
+            const workItem = content[currentLanguage].experience.items[id];
+            if (!workItem) return;
+
+            activeWorkId = id;
+            const display = document.getElementById('content-display');
+            const renderWorkItem = () => {
+                document.getElementById('c-title').innerHTML = workItem.title;
+                document.getElementById('c-body').innerHTML = workItem.body;
+                display.style.opacity = '1';
+                display.style.transform = 'translateY(0)';
+            };
+
+            clearTimeout(workSwitchTimer);
+            if (immediate) {
+                renderWorkItem();
+                return;
+            }
+
+            display.style.opacity = '0';
+            display.style.transform = 'translateY(6px)';
+
+            workSwitchTimer = window.setTimeout(renderWorkItem, 180);
+        }
+
+        // 4. 精致 Apple 风格弹出式 Toast 复制提示
+        function copyText(text) {
+            const el = document.createElement('textarea');
+            el.value = text;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+
+            const alertBox = document.createElement('div');
+            alertBox.className = 'fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-stone-900/95 backdrop-blur-md text-white text-xs font-mono px-5 py-2.5 rounded-full shadow-xl z-50 transition-all duration-300 opacity-0 translate-y-2';
+            alertBox.innerText = `${content[currentLanguage].contact.copied}: ${text}`;
+            document.body.appendChild(alertBox);
+            
+            setTimeout(() => {
+                alertBox.style.opacity = '1';
+                alertBox.style.transform = 'translateY(0) translate-x(-50%)';
+            }, 50);
+            
+            setTimeout(() => {
+                alertBox.style.opacity = '0';
+                alertBox.style.transform = 'translateY(2px) translate-x(-50%)';
+                setTimeout(() => alertBox.remove(), 300);
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
