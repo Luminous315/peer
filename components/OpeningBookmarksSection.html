@@ -1,1 +1,743 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpeningBookmarksSection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300..700&family=Gaegu:wght@400;700&family=Noto+Sans+SC:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Fredoka', 'Gaegu', 'Noto Sans SC', sans-serif;
+            background-color: #feebd4;
+            overflow: hidden;
+        }
 
+        #opening-bookmarks-section {
+            min-height: 100svh;
+            display: grid;
+            place-items: center;
+            padding: 12px;
+        }
+
+        #hero-canvas-shell {
+            position: relative;
+            flex: 0 0 auto;
+        }
+
+        #interactive-canvas {
+            position: absolute;
+            inset: 0 auto auto 0;
+            width: 620px;
+            height: 775px;
+            transform-origin: top left;
+        }
+
+        /* Comic Book Halftone Dots Pattern for retro texture */
+        .halftone-bg {
+            background-image: radial-gradient(#222 25%, transparent 26%);
+            background-size: 5px 5px;
+            background-repeat: repeat;
+        }
+
+        /* Spring-physics cubic bezier for realistic sticker pulling motion */
+        .bookmark-transition {
+            transition: transform 0.4s cubic-bezier(0.34, 1.65, 0.64, 1), filter 0.3s ease;
+        }
+
+        /* Handdrawn drop shadow to mimic thick paper stickers */
+        .diecut-shadow {
+            filter: drop-shadow(4px 4px 0px rgba(0, 0, 0, 0.9));
+        }
+
+        /* Hover elevation effect */
+        .bookmark-hover:hover {
+            transform: translateY(-110px) scale(1.04) rotate(0deg) !important;
+            z-index: 50 !important;
+        }
+
+        .bookmark-hover.is-touch-raised {
+            transform: translateY(-92px) scale(1.035) rotate(0deg) !important;
+            z-index: 50 !important;
+        }
+
+        /* Interactive Star Physics */
+        .star-interactive {
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.3s ease;
+            cursor: pointer;
+            animation: star-breathing 2.8s ease-in-out infinite;
+            will-change: transform, filter;
+        }
+        .star-interactive:nth-child(2) { animation-delay: -.45s; }
+        .star-interactive:nth-child(3) { animation-delay: -.9s; }
+        .star-interactive:nth-child(4) { animation-delay: -1.35s; }
+        .star-interactive:nth-child(5) { animation-delay: -1.8s; }
+        .star-interactive:nth-child(6) { animation-delay: -2.25s; }
+
+        @keyframes star-breathing {
+            0%, 100% {
+                transform: scale(.94) rotate(-3deg);
+                filter: drop-shadow(0 0 0 rgba(251, 191, 36, 0));
+            }
+            50% {
+                transform: scale(1.12) rotate(3deg);
+                filter: drop-shadow(0 0 9px rgba(251, 191, 36, .38));
+            }
+        }
+
+        .star-interactive:hover {
+            animation-play-state: paused;
+            transform: scale(1.4) rotate(144deg);
+            filter: drop-shadow(0 0 12px rgba(251, 191, 36, 0.8));
+        }
+
+        /* Particle star styling */
+        .star-particle {
+            position: absolute;
+            pointer-events: none;
+            z-index: 100;
+            animation: particle-fade-drift 1.2s ease-out forwards;
+        }
+
+        @keyframes particle-fade-drift {
+            0% {
+                transform: translate(0, 0) scale(1) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--dx), var(--dy)) scale(0.3) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        @keyframes banner-breath {
+            0%, 100% {
+                transform: scale(1) rotate(6deg);
+            }
+            50% {
+                transform: scale(1.05) rotate(4deg);
+            }
+        }
+        .banner-breathing {
+            animation: banner-breath 3s ease-in-out infinite;
+            cursor: pointer;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.3s ease;
+        }
+        .banner-breathing:hover {
+            animation-play-state: paused;
+            transform: scale(1.15) rotate(10deg) !important;
+            filter: drop-shadow(6px 6px 0px rgba(244, 114, 182, 0.6));
+        }
+        .banner-breathing:active {
+            transform: scale(0.95) rotate(2deg) !important;
+        }
+
+        @media (max-width: 640px) {
+            #opening-bookmarks-section {
+                padding: 8px;
+            }
+
+            .opening-hint {
+                max-width: 90vw;
+                font-size: 10px !important;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(254, 243, 199, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #f59e0b;
+            border-radius: 99px;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-[#feebd4] select-none relative">
+
+<script>
+    let audioCtx;
+    
+    function playCuteSound(type) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        if (!audioCtx) audioCtx = new AudioContextClass();
+
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        const now = audioCtx.currentTime;
+
+        if (type === 'hover') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(350, now);
+            osc.frequency.exponentialRampToValueAtTime(700, now + 0.1);
+            gainNode.gain.setValueAtTime(0.04, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+            osc.start(now);
+            osc.stop(now + 0.1);
+        } else if (type === 'star') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, now);
+            osc.frequency.exponentialRampToValueAtTime(1760, now + 0.15);
+            gainNode.gain.setValueAtTime(0.06, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+            osc.start(now);
+            osc.stop(now + 0.15);
+        } else if (type === 'banner-pop') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(440, now);
+            osc.frequency.exponentialRampToValueAtTime(1200, now + 0.2);
+            gainNode.gain.setValueAtTime(0.08, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+            osc.start(now);
+            osc.stop(now + 0.2);
+        } else if (type === 'click-success') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(390, now);
+            osc.frequency.exponentialRampToValueAtTime(1400, now + 0.35);
+            gainNode.gain.setValueAtTime(0.12, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+            osc.start(now);
+            osc.stop(now + 0.35);
+        } else {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(220, now);
+            osc.frequency.exponentialRampToValueAtTime(480, now + 0.08);
+            gainNode.gain.setValueAtTime(0.07, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+            osc.start(now);
+            osc.stop(now + 0.08);
+        }
+    }
+</script>
+
+<!-- OpeningBookmarksSection: isolated hero component -->
+<main id="opening-bookmarks-section" aria-label="Personal resume opening">
+    <div class="flex flex-col items-center justify-center relative">
+        
+        <!-- Interactive Canvas frame -->
+        <div id="hero-canvas-shell">
+        <div id="interactive-canvas" class="bg-white border-8 border-black rounded-[3rem] shadow-[16px_16px_0px_rgba(0,0,0,1)] overflow-hidden flex flex-col justify-end px-8">
+            
+            <!-- STARRY SKY: 7 Interactive Stars remaining (perfectly spaced) -->
+            <!-- Star 1 (Orange, left) -->
+            <div class="star-interactive absolute left-[8%] top-[25%] z-20 w-8 h-8 select-none" onclick="spawnParticles(this, '#fb923c', '✦')">
+                <svg viewBox="0 0 24 24" fill="#fb923c" stroke="black" stroke-width="2">
+                    <path d="M12 .587l3.668 7.431 8.2 1.192-5.934 5.784 1.4 8.168L12 18.896l-7.334 3.857 1.4-8.168L.132 9.41l8.2-1.192L12 .587z"/>
+                </svg>
+            </div>
+            <!-- Star 3 (Purple, top-center) -->
+            <div class="star-interactive absolute left-[45%] top-[12%] z-20 w-8 h-8 select-none" onclick="spawnParticles(this, '#a78bfa', '✦')">
+                <svg viewBox="0 0 24 24" fill="#a78bfa" stroke="black" stroke-width="2">
+                    <path d="M12 .587l3.668 7.431 8.2 1.192-5.934 5.784 1.4 8.168L12 18.896l-7.334 3.857 1.4-8.168L.132 9.41l8.2-1.192L12 .587z"/>
+                </svg>
+            </div>
+            <!-- Star 4 (Yellow, top-right) -->
+            <div class="star-interactive absolute left-[58%] top-[18%] z-20 w-7 h-7 select-none" onclick="spawnParticles(this, '#facc15', '✦')">
+                <svg viewBox="0 0 24 24" fill="#facc15" stroke="black" stroke-width="2">
+                    <path d="M12 .587l3.668 7.431 8.2 1.192-5.934 5.784 1.4 8.168L12 18.896l-7.334 3.857 1.4-8.168L.132 9.41l8.2-1.192L12 .587z"/>
+                </svg>
+            </div>
+            <!-- Star 6 (Cyan, upper-left center) -->
+            <div class="star-interactive absolute left-[22%] top-[10%] z-20 w-6 h-6 select-none" onclick="spawnParticles(this, '#22d3ee', '✦')">
+                <svg viewBox="0 0 24 24" fill="#22d3ee" stroke="black" stroke-width="2">
+                    <path d="M12 .587l3.668 7.431 8.2 1.192-5.934 5.784 1.4 8.168L12 18.896l-7.334 3.857 1.4-8.168L.132 9.41l8.2-1.192L12 .587z"/>
+                </svg>
+            </div>
+            <!-- Star 8 (Bright Rose, left margin) -->
+            <div class="star-interactive absolute left-[2%] top-[35%] z-20 w-7 h-7 select-none" onclick="spawnParticles(this, '#f43f5e', '✦')">
+                <svg viewBox="0 0 24 24" fill="#f43f5e" stroke="black" stroke-width="2">
+                    <path d="M12 .587l3.668 7.431 8.2 1.192-5.934 5.784 1.4 8.168L12 18.896l-7.334 3.857 1.4-8.168L.132 9.41l8.2-1.192L12 .587z"/>
+                </svg>
+            </div>
+            <!-- Star 9 (Gold Amber, right margin) -->
+            <div class="star-interactive absolute left-[92%] top-[28%] z-20 w-6 h-6 select-none" onclick="spawnParticles(this, '#f59e0b', '✦')">
+                <svg viewBox="0 0 24 24" fill="#f59e0b" stroke="black" stroke-width="2">
+                    <path d="M12 .587l3.668 7.431 8.2 1.192-5.934 5.784 1.4 8.168L12 18.896l-7.334 3.857 1.4-8.168L.132 9.41l8.2-1.192L12 .587z"/>
+                </svg>
+            </div>
+
+            <!-- Handdrawn Banner Right Top "pickup ME!" with Breathing & Heart exploding interaction -->
+            <div onclick="bannerExplosion(this)" class="absolute top-4 right-4 z-10 select-none transform rotate-6 drop-shadow-[2px_2px_0px_rgba(0,0,0,1)] banner-breathing">
+                <div class="relative">
+                    <span class="absolute -left-4 top-2 text-2xl font-black text-black">\</span>
+                    <span class="absolute -left-1 -top-3 text-2xl font-black text-black">|</span>
+                    <span class="absolute right-0 -top-4 text-2xl font-black text-black">|</span>
+                    <span class="absolute -right-4 top-2 text-2xl font-black text-black">/</span>
+                    <h2 class="text-4xl md:text-5xl font-black tracking-tighter text-black uppercase leading-none text-center">
+                        pickup<br><span class="text-pink-500">ME!</span>
+                    </h2>
+                </div>
+            </div>
+
+            <!-- The bookmarks block peeking out from inside the book stack -->
+            <div class="absolute inset-x-0 top-[10%] bottom-[28%] z-10 flex items-end justify-center pointer-events-none px-4 translate-y-6">
+                <div class="relative w-full h-full flex items-end justify-between">
+
+                    <!-- Bookmark 1: PURPLE SHEEP BOOKMARK (紫色绵羊 🐑) -->
+                    <div id="bookmark-purple" onmouseenter="playCuteSound('hover')" onclick="triggerBubble('温顺绵羊：数一只小羊，读两行温热文字，在书香里做个好梦。🐑')" 
+                        class="bookmark-transition bookmark-hover diecut-shadow group absolute left-[-15px] bottom-[-72px] w-[88px] h-[310px] rotate-[-10deg] pointer-events-auto cursor-pointer">
+                        <svg viewBox="0 0 100 320" class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Layer 1: Outer black sticker cutout background -->
+                            <path d="M 50,30 C 40,30 36,36 32,36 C 22,36 18,45 22,54 C 15,63 19,74 28,74 C 26,83 34,90 42,90 C 46,96 56,96 60,90 C 68,90 76,83 74,74 C 83,74 87,63 80,54 C 85,45 81,36 71,36 C 68,36 64,30 50,30 Z" fill="#000000" stroke="#000000" stroke-width="14" stroke-linejoin="round"/>
+                            <rect x="23" y="76" width="54" height="225" rx="27" ry="27" fill="#000000" stroke="#000000" stroke-width="14" stroke-linejoin="round"/>
+
+                            <!-- Layer 2: White sticker padding layer -->
+                            <path d="M 50,30 C 40,30 36,36 32,36 C 22,36 18,45 22,54 C 15,63 19,74 28,74 C 26,83 34,90 42,90 C 46,96 56,96 60,90 C 68,90 76,83 74,74 C 83,74 87,63 80,54 C 85,45 81,36 71,36 C 68,36 64,30 50,30 Z" fill="#ffffff" stroke="#ffffff" stroke-width="6" stroke-linejoin="round"/>
+                            <rect x="25" y="78" width="50" height="220" rx="25" ry="25" fill="#ffffff" stroke="#ffffff" stroke-width="6" stroke-linejoin="round"/>
+
+                            <!-- Layer 3: Solid Purple handle (Stem) -->
+                            <rect x="27" y="80" width="46" height="215" rx="23" ry="23" fill="#a78bfa" />
+
+                            <!-- Layer 4: Fluffy Sheep Character Top -->
+                            <path d="M 50,35 C 42,35 38,42 34,42 C 26,42 22,50 26,58 C 20,66 24,76 32,76 C 30,84 38,90 46,90 C 50,96 60,96 64,90 C 72,90 80,84 78,76 C 86,76 90,66 84,58 C 88,50 84,42 76,42 C 72,42 68,35 60,35 Z" fill="#fffdfa" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
+                            <!-- Face -->
+                            <ellipse cx="50" cy="65" rx="16" ry="12" fill="#ffeae0" stroke="#000000" stroke-width="3"/>
+                            <!-- Eyes -->
+                            <circle cx="45" cy="64" r="2" fill="#000000"/>
+                            <circle cx="55" cy="64" r="2" fill="#000000"/>
+                            <!-- Blush -->
+                            <ellipse cx="40" cy="67" rx="2.5" ry="1.5" fill="#f472b6"/>
+                            <ellipse cx="60" cy="67" rx="2.5" ry="1.5" fill="#f472b6"/>
+                            <!-- Mouth -->
+                            <path d="M 48,70 Q 50,72 52,70" stroke="#000000" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+                            <!-- Horns -->
+                            <path d="M 36,56 Q 30,50 34,46 Q 38,46 38,54" stroke="#d8b4fe" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                            <path d="M 64,56 Q 70,50 66,46 Q 62,46 62,54" stroke="#d8b4fe" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+                            <!-- Thin White Junction Separator -->
+                            <path d="M 28,84 Q 50,77 72,84" stroke="#ffffff" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+
+                            <!-- First-edition Classic Handle Expressions -->
+                            <circle cx="42" cy="180" r="4.5" fill="#000000"/>
+                            <circle cx="58" cy="180" r="4.5" fill="#000000"/>
+                            <path d="M 40,195 C 45,202 55,202 60,195" stroke="#000000" stroke-width="5" stroke-linecap="round" fill="none"/>
+                        </svg>
+                    </div>
+
+                    <!-- Bookmark 2: ORANGE RECORD BOOKMARK (橙色黑胶唱片 🎵) -->
+                    <div id="bookmark-orange" onmouseenter="playCuteSound('hover')" onclick="triggerBubble('黑胶唱片：聆听复古的沙沙声，让文字与美妙旋律一同翩翩起舞。🎵')" 
+                        class="bookmark-transition bookmark-hover diecut-shadow group absolute left-[62px] bottom-[-77px] w-[88px] h-[320px] rotate-[-5deg] pointer-events-auto cursor-pointer">
+                        <svg viewBox="0 0 100 320" class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Layer 1: Outer black sticker cutout background -->
+                            <circle cx="50" cy="56" r="34" fill="#000000" stroke="#000000" stroke-width="12" stroke-linejoin="round"/>
+                            <rect x="23" y="76" width="54" height="225" rx="27" ry="27" fill="#000000" stroke="#000000" stroke-width="12" stroke-linejoin="round"/>
+
+                            <!-- Layer 2: White sticker padding layer -->
+                            <circle cx="50" cy="56" r="34" fill="#ffffff" stroke="#ffffff" stroke-width="4" stroke-linejoin="round"/>
+                            <rect x="25" y="78" width="50" height="220" rx="25" ry="25" fill="#ffffff" stroke="#ffffff" stroke-width="4" stroke-linejoin="round"/>
+
+                            <!-- Layer 3: Solid Orange handle (Stem) -->
+                            <rect x="27" y="81" width="46" height="214" rx="23" ry="23" fill="#fb923c" />
+
+                            <!-- Layer 4: Vinyl Record custom top illustration -->
+                            <circle cx="50" cy="56" r="28" fill="#1c1917" stroke="#000000" stroke-width="3"/>
+                            <!-- Grooves -->
+                            <circle cx="50" cy="56" r="22" fill="none" stroke="#4b5563" stroke-width="1.5"/>
+                            <circle cx="50" cy="56" r="16" fill="none" stroke="#4b5563" stroke-width="1"/>
+                            <!-- Center label (Yellow) -->
+                            <circle cx="50" cy="56" r="9" fill="#facc15" stroke="#000000" stroke-width="2"/>
+                            <circle cx="50" cy="56" r="2" fill="#1c1917"/>
+
+                            <!-- Stylized Pink Hand from reference image_5ffdbc.jpg -->
+                            <path d="M 82,34 C 74,28 62,28 54,38 C 52,41 53,46 58,45 C 62,43 68,39 74,42 C 74,42 76,34 82,34 Z" fill="#ff9eb5" stroke="#000000" stroke-width="3" stroke-linejoin="round"/>
+
+                            <!-- Thin White Junction Separator -->
+                            <path d="M 28,84 Q 50,78 72,84" stroke="#ffffff" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+
+                            <!-- First-edition Classic Handle Expressions -->
+                            <circle cx="43" cy="180" r="5" fill="#000000"/>
+                            <circle cx="57" cy="180" r="5" fill="#000000"/>
+                            <path d="M 38,198 Q 50,210 62,198" stroke="#000000" stroke-width="5" stroke-linecap="round" fill="none"/>
+                        </svg>
+                    </div>
+
+                    <!-- Bookmark 3: RED FERRARI CAR BOOKMARK (红色法拉利赛车 🏎️) -->
+                    <div id="bookmark-red" onmouseenter="playCuteSound('hover')" onclick="triggerBubble('法拉利赛车：速度与创意的极致狂飙！感受肾上腺素飙升的阅读旅程。🏎️')" 
+                        class="bookmark-transition bookmark-hover diecut-shadow group absolute left-[140px] bottom-[-67px] w-[92px] h-[330px] rotate-[2deg] pointer-events-auto cursor-pointer">
+                        <svg viewBox="0 0 100 320" class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Layer 1: Outer black sticker cutout background -->
+                            <g stroke="#000000" stroke-width="16" stroke-linejoin="round" stroke-linecap="round" fill="#000000">
+                                <path d="M 18,52 L 32,36 L 45,52 Z" />
+                                <path d="M 72,32 L 88,32 L 84,46 L 70,46 Z" />
+                                <path d="M 32,36 Q 50,22 68,32 L 72,46 L 40,46 Z" />
+                                <circle cx="34" cy="56" r="10" />
+                                <circle cx="74" cy="56" r="10" />
+                            </g>
+                            <rect x="23" y="70" width="54" height="230" rx="27" ry="27" fill="#000000" stroke="#000000" stroke-width="14" stroke-linejoin="round"/>
+
+                            <!-- Layer 2: White sticker padding layer -->
+                            <g stroke="#ffffff" stroke-width="10" stroke-linejoin="round" stroke-linecap="round" fill="#ffffff">
+                                <path d="M 18,52 L 32,36 L 45,52 Z" />
+                                <path d="M 72,32 L 88,32 L 84,46 L 70,46 Z" />
+                                <path d="M 32,36 Q 50,22 68,32 L 72,46 L 40,46 Z" />
+                                <circle cx="34" cy="56" r="10" />
+                                <circle cx="74" cy="56" r="10" />
+                            </g>
+                            <rect x="25" y="72" width="50" height="226" rx="25" ry="25" fill="#ffffff" stroke="#ffffff" stroke-width="10" stroke-linejoin="round"/>
+
+                            <!-- Layer 3: Solid Red handle (Stem) -->
+                            <rect x="27" y="74" width="46" height="222" rx="23" ry="23" fill="#ef4444" />
+
+                            <!-- Layer 4: Detailed Racing Car custom top illustration -->
+                            <path d="M 18,52 L 32,36 L 45,52 Z" fill="#ef4444" stroke="#000000" stroke-width="3" stroke-linejoin="round"/>
+                            <path d="M 72,32 L 88,32 L 84,46 L 70,46 Z" fill="#ef4444" stroke="#000000" stroke-width="3" stroke-linejoin="round"/>
+                            <path d="M 32,36 Q 50,22 68,32 L 72,46 L 40,46 Z" fill="#ef4444" stroke="#000000" stroke-width="3" stroke-linejoin="round"/>
+                            <circle cx="34" cy="56" r="10" fill="#1c1917" stroke="#000000" stroke-width="3"/>
+                            <circle cx="34" cy="56" r="3" fill="#facc15"/>
+                            <circle cx="74" cy="56" r="10" fill="#1c1917" stroke="#000000" stroke-width="3"/>
+                            <circle cx="74" cy="56" r="3" fill="#facc15"/>
+                            <text x="54" y="49" font-family="'Fredoka', sans-serif" font-weight="900" font-size="14" fill="#000000" text-anchor="middle">16</text>
+                            <path d="M 48,27 Q 50,17 52,27" stroke="#000000" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+                            <path d="M 54,25 Q 56,15 58,25" stroke="#000000" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+
+                            <!-- Thin White Junction Separator -->
+                            <path d="M 28,78 Q 50,71 72,78" stroke="#ffffff" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+
+                            <!-- First-edition Classic Handle Expressions -->
+                            <circle cx="42" cy="180" r="5" fill="#000000"/>
+                            <circle cx="58" cy="180" r="5" fill="#000000"/>
+                            <path d="M 42,196 Q 50,210 58,196 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5"/>
+                        </svg>
+                    </div>
+
+                    <!-- Bookmark 4: YELLOW PEAR BOOKMARK (黄色大黄梨 🍐) -->
+                    <div id="bookmark-yellow" onmouseenter="playCuteSound('hover')" onclick="triggerBubble('大黄梨：多汁饱满的创意果实，轻咬一口就是满满的阅读甜美！🍐')" 
+                        class="bookmark-transition bookmark-hover diecut-shadow group absolute left-[215px] bottom-[-72px] w-[88px] h-[305px] rotate-[5deg] pointer-events-auto cursor-pointer">
+                        <svg viewBox="0 0 100 320" class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Layer 1: Outer black sticker cutout background -->
+                            <path d="M 50,24 C 40,24 42,54 30,74 C 20,89 30,109 50,109 C 70,109 80,89 70,74 C 58,54 60,24 50,24 Z" fill="#000000" stroke="#000000" stroke-width="14" stroke-linejoin="round"/>
+                            <rect x="23" y="101" width="54" height="200" rx="27" ry="27" fill="#000000" stroke="#000000" stroke-width="14" stroke-linejoin="round"/>
+
+                            <!-- Layer 2: White sticker padding layer -->
+                            <path d="M 50,24 C 40,24 42,54 30,74 C 20,89 30,109 50,109 C 70,109 80,89 70,74 C 58,54 60,24 50,24 Z" fill="#ffffff" stroke="#ffffff" stroke-width="6" stroke-linejoin="round"/>
+                            <rect x="25" y="103" width="50" height="194" rx="25" ry="25" fill="#ffffff" stroke="#ffffff" stroke-width="6" stroke-linejoin="round"/>
+
+                            <!-- Layer 3: Solid Yellow handle (Stem) -->
+                            <rect x="27" y="105" width="46" height="190" rx="23" ry="23" fill="#facc15" />
+
+                            <!-- Layer 4: Pear Custom Top Shape -->
+                            <path d="M 50,26 C 40,26 42,54 30,74 C 20,89 30,109 50,109 C 70,109 80,89 70,74 C 58,54 60,26 50,26 Z" fill="#facc15" stroke="#000000" stroke-width="3" stroke-linejoin="round"/>
+                            <!-- Blue Stem -->
+                            <path d="M 50,26 L 52,13 C 53,11 55,11 56,13 L 53,26 Z" fill="#2563eb" stroke="#000000" stroke-width="2.5" stroke-linejoin="round"/>
+                            <!-- Green Leaf -->
+                            <path d="M 53,18 C 61,14 65,16 67,22 C 63,24 57,22 53,18 Z" fill="#22c55e" stroke="#000000" stroke-width="2" stroke-linejoin="round"/>
+
+                            <!-- Thin White Junction Separator -->
+                            <path d="M 28,111 Q 50,104 72,111" stroke="#ffffff" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+
+                            <!-- First-edition Classic Handle Expressions (Wink Tongue) -->
+                            <path d="M 37,182 Q 43,176 43,184" fill="none" stroke="#000000" stroke-width="5" stroke-linecap="round"/>
+                            <circle cx="58" cy="180" r="5" fill="#000000"/>
+                            <path d="M 46,195 Q 50,205 54,195 Z" fill="#f472b6" stroke="#000000" stroke-width="3"/>
+                        </svg>
+                    </div>
+
+                    <!-- THE GOLDEN GATEWAY: Bookmark 5 (黑色神秘问号与粉色大抓手 🔒) -->
+                    <div id="gateway-group" class="absolute left-[295px] bottom-[-15px] w-[140px] h-[340px] pointer-events-auto z-40 group flex flex-col items-center justify-end">
+                        
+                        <!-- THE PINK HAND: Perfect recreation of the exact chunky, rounded 3-finger design from Tomoooo's artwork (NO WHITE CREASES) -->
+                        <div id="giant-hand" aria-hidden="true" class="absolute top-[-5px] right-[-52px] w-[205px] h-[150px] transition-transform duration-300 transform group-hover:-translate-y-8 select-none pointer-events-none">
+                            <svg viewBox="0 0 200 150" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full drop-shadow-[5px_5px_0px_#000]">
+                                <!-- Main Wrist extending from top right -->
+                                <path d="M 200,5 C 200,5 180,35 150,45 C 130,52 110,48 100,60" stroke="black" stroke-width="8" stroke-linecap="round"/>
+                                <path d="M 200,0 L 200,98 L 175,85 C 150,78 120,70 102,70 C 85,70 80,48 102,30 C 120,15 150,5 200,0 Z" fill="#ff9eb5"/>
+
+                                <!-- Finger 1 (Topmost rounded chubby finger wrapping around card) -->
+                                <path d="M 125,12 C 100,6 72,14 62,28 C 50,44 65,58 88,54 C 110,50 125,38 132,30" fill="#ff9eb5" stroke="black" stroke-width="8" stroke-linejoin="round"/>
+                                
+                                <!-- Finger 2 (Chubby middle finger wrapping around card) -->
+                                <path d="M 115,38 C 88,34 64,42 54,58 C 44,74 58,88 82,82 C 105,76 122,64 128,52" fill="#ff9eb5" stroke="black" stroke-width="8" stroke-linejoin="round"/>
+                                
+                                <!-- Finger 3 (Chubby bottom finger wrapping around card) -->
+                                <path d="M 118,65 C 92,62 70,72 60,88 C 50,104 68,118 90,110 C 112,102 125,88 130,76" fill="#ff9eb5" stroke="black" stroke-width="8" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+
+                        <button id="giant-hand-hit" type="button" aria-label="打开进入简历确认弹窗" class="absolute top-[-5px] right-[-52px] z-50 w-[118px] h-[132px] bg-transparent cursor-pointer focus:outline-none focus-visible:ring-4 focus-visible:ring-pink-400 rounded-full"></button>
+
+                        <!-- Black "?" Bookmark with glowing pink aura on hover -->
+                        <button id="bookmark-secret" type="button" aria-label="进入 About Me" class="bookmark-transition w-[70px] h-[280px] bg-[#1c1917] border-4 border-black rounded-t-3xl shadow-[4px_-4px_0px_rgba(236,72,153,0.5)] rotate-[-4deg] group-hover:rotate-0 group-hover:-translate-y-8 group-hover:shadow-[0px_0px_20px_#f472b6] flex flex-col justify-start items-center p-3 relative border-pink-500 cursor-pointer focus:outline-none focus-visible:ring-4 focus-visible:ring-pink-300">
+                            <div class="absolute inset-0 bg-pink-500 opacity-0 group-hover:opacity-10 transition-opacity rounded-t-2xl"></div>
+                            <div class="font-black text-[#ff4b82] text-4xl mt-6 tracking-widest uppercase select-none transform rotate-[8deg] drop-shadow-[2px_2px_0px_#000] animate-pulse">?</div>
+                        </button>
+                    </div>
+
+                    <!-- Bookmark 6: PINK MUSIC & WINE BOOKMARK (粉色音符与美酒 🍷) -->
+                    <div id="bookmark-pink" onmouseenter="playCuteSound('hover')" onclick="triggerBubble('微醺音符：粉色酒杯盛满灵感，让音符在书页里悄悄呢喃。🎵🍷')" 
+                        class="bookmark-transition bookmark-hover diecut-shadow group absolute right-[-15px] bottom-[-72px] w-[88px] h-[305px] rotate-[10deg] pointer-events-auto cursor-pointer">
+                        <svg viewBox="0 0 100 320" class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Layer 1: Outer black sticker cutout background -->
+                            <path d="M 12,65 C 10,40 32,20 54,20 C 76,20 88,40 88,65 C 88,90 76,102 72,104" fill="none" stroke="#000000" stroke-width="16" stroke-linejoin="round" stroke-linecap="round"/>
+                            <rect x="23" y="96" width="54" height="205" rx="27" ry="27" fill="#000000" stroke="#000000" stroke-width="14" stroke-linejoin="round"/>
+
+                            <!-- Layer 2: White sticker padding layer -->
+                            <path d="M 12,65 C 10,40 32,20 54,20 C 76,20 88,40 88,65 C 88,90 76,102 72,104" fill="none" stroke="#ffffff" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
+                            <rect x="25" y="98" width="50" height="201" rx="25" ry="25" fill="#ffffff" stroke="#ffffff" stroke-width="10" stroke-linejoin="round"/>
+
+                            <!-- Layer 3: Solid Pink handle (Stem) -->
+                            <rect x="27" y="100" width="46" height="195" rx="23" ry="23" fill="#f472b6" />
+
+                            <!-- Layer 4: Custom Pink Wine and Note drawings -->
+                            <!-- Pink Wine Glass -->
+                            <path d="M 32,44 H 68 L 50,60 Z" fill="#db2777" stroke="#000000" stroke-width="3" stroke-linejoin="round"/>
+                            <path d="M 50,60 V 72" stroke="#000000" stroke-width="3.5" stroke-linecap="round"/>
+                            <ellipse cx="50" cy="72" rx="10" ry="3.5" fill="#f472b6" stroke="#000000" stroke-width="3"/>
+                            <!-- Cherry -->
+                            <circle cx="54" cy="40" r="3" fill="#ffffff" stroke="#000000" stroke-width="1.5"/>
+
+                            <!-- Dancing Musical Note -->
+                            <path d="M 34,75 L 28,95" stroke="#000000" stroke-width="4" stroke-linecap="round"/>
+                            <path d="M 44,75 L 38,95" stroke="#000000" stroke-width="4" stroke-linecap="round"/>
+                            <path d="M 34,75 L 44,75" stroke="#000000" stroke-width="5" stroke-linecap="round"/>
+                            <ellipse cx="25" cy="95" rx="6" ry="4.5" fill="#db2777" stroke="#000000" stroke-width="2.5"/>
+                            <ellipse cx="35" cy="95" rx="6" ry="4.5" fill="#db2777" stroke="#000000" stroke-width="2.5"/>
+
+                            <!-- Thin White Junction Separator -->
+                            <path d="M 28,106 Q 50,100 72,106" stroke="#ffffff" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+
+                            <!-- First-edition Classic Handle Expressions (Heart Eyes) -->
+                            <path d="M 38,175 C 36,172 32,172 32,175 C 32,178 38,184 38,184 C 38,184 44,178 44,175 C 44,172 40,172 38,175 Z" fill="#db2777" stroke="#000000" stroke-width="1.5"/>
+                            <path d="M 62,175 C 60,172 56,172 56,175 C 56,178 62,184 62,184 C 62,184 68,178 68,175 C 68,172 64,172 62,175 Z" fill="#db2777" stroke="#000000" stroke-width="1.5"/>
+                            <path d="M 44,196 C 47,200 53,200 56,196" stroke="#000000" stroke-width="4" stroke-linecap="round" fill="none"/>
+                        </svg>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- THE BOOK (Foreground layer) -->
+            <div class="w-full h-[180px] bg-[#333] border-4 border-black rounded-[2rem] relative z-20 flex flex-col justify-between p-4 shadow-[0px_8px_0px_#000] overflow-hidden">
+                <div class="absolute inset-0 halftone-bg opacity-30 pointer-events-none"></div>
+                
+                <!-- White paper sheets border -->
+                <div class="absolute top-0 inset-x-0 h-4 bg-white border-b-4 border-black flex flex-col justify-between py-0.5">
+                    <div class="w-full h-[1px] bg-stone-300"></div>
+                    <div class="w-full h-[1px] bg-stone-300"></div>
+                    <div class="w-full h-[1px] bg-stone-300"></div>
+                </div>
+
+                <!-- Book Titles -->
+                <div class="relative z-10 w-full h-full flex flex-col justify-between items-center text-center mt-3">
+                    <div class="w-full">
+                        <h3 class="text-2xl md:text-3xl font-black tracking-widest text-white leading-none uppercase drop-shadow-[2px_2px_0px_#000] font-sans">
+                            SELF INTRO
+                        </h3>
+                        <p class="text-xs font-bold text-yellow-300 tracking-[0.2em] italic uppercase -mt-0.5">
+                            personal resume
+                        </p>
+                    </div>
+
+                    <!-- Label badge bottom -->
+                    <div class="bg-black text-white px-4 py-1.5 rounded-full border-2 border-white/20 text-[10px] font-black tracking-widest uppercase">
+                        ABOUT ME · EXPERIENCE · SKILLS
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interactive Dialogue Bubble -->
+            <div id="dialogue-bubble" class="absolute bottom-6 inset-x-8 bg-amber-50 border-4 border-black p-4 rounded-2xl z-50 shadow-[4px_4px_0px_rgba(0,0,0,1)] transition-all duration-300 transform translate-y-24 opacity-0 pointer-events-none">
+                <div class="relative">
+                    <p id="bubble-text" class="text-xs font-black text-stone-900 leading-snug"></p>
+                    <button onclick="hideBubble()" class="absolute -top-3 -right-3 w-6 h-6 bg-red-500 border-2 border-black rounded-full flex items-center justify-center text-xs font-bold text-white hover:bg-red-600 transition-colors pointer-events-auto">×</button>
+                </div>
+            </div>
+
+        </div>
+        </div>
+
+        <!-- Custom Confirmation Dialog Box -->
+        <div id="custom-confirm-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden transition-opacity duration-300">
+            <div class="bg-[#fffaf0] border-4 border-black p-6 rounded-[2rem] shadow-[12px_12px_0px_#000] max-w-sm w-full transform scale-95 transition-transform duration-300 flex flex-col items-center text-center space-y-4">
+                <div class="w-16 h-16 bg-[#fef3c7] border-4 border-black rounded-full flex items-center justify-center text-3xl animate-bounce">
+                    🚀
+                </div>
+                <div>
+                    <h3 class="text-lg font-black text-black">准备进入我的个人简历页面</h3>
+                    <p class="text-xs font-bold text-stone-600 mt-2">继续后，页面将向上移动至 About Me。</p>
+                </div>
+                <div class="flex space-x-3 w-full">
+                    <button id="modal-cancel-btn" class="flex-1 py-2.5 bg-stone-200 hover:bg-stone-300 border-2 border-black rounded-xl text-xs font-black text-black shadow-[3px_3px_0px_#000] active:translate-y-1 active:shadow-none transition-all">
+                        暂时停留
+                    </button>
+                    <button id="modal-confirm-btn" class="flex-1 py-2.5 bg-[#f472b6] hover:bg-pink-400 border-2 border-black rounded-xl text-xs font-black text-white shadow-[3px_3px_0px_#000] active:translate-y-1 active:shadow-none transition-all">
+                        继续查看
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Touch Prompt Info -->
+        <p class="opening-hint text-xs text-stone-600 font-bold mt-4 animate-pulse uppercase tracking-wide text-center">
+            💡 点击黑色问号进入 About Me；点击粉色大手可先确认。触摸星星有惊喜！
+        </p>
+    </div>
+</main>
+
+<script>
+    const interactiveCanvas = document.getElementById('interactive-canvas');
+    const canvasShell = document.getElementById('hero-canvas-shell');
+    const secretBookmark = document.getElementById('bookmark-secret');
+    const giantHand = document.getElementById('giant-hand-hit');
+
+    function fitHeroCanvas() {
+        const designWidth = 620;
+        const designHeight = 775;
+        const availableWidth = Math.max(280, window.innerWidth - 28);
+        const availableHeight = Math.max(440, window.innerHeight - 68);
+        const scale = Math.min(1, availableWidth / designWidth, availableHeight / designHeight);
+
+        interactiveCanvas.style.transform = `scale(${scale})`;
+        canvasShell.style.width = `${designWidth * scale}px`;
+        canvasShell.style.height = `${designHeight * scale}px`;
+    }
+
+    fitHeroCanvas();
+    window.addEventListener('resize', fitHeroCanvas);
+
+    // Dialogue Bubble engine
+    let bubbleTimeout;
+    function triggerBubble(text) {
+        playCuteSound('click');
+        const bubble = document.getElementById('dialogue-bubble');
+        const bubbleTxt = document.getElementById('bubble-text');
+        
+        bubbleTxt.innerText = text;
+        bubble.classList.remove('translate-y-24', 'opacity-0', 'pointer-events-none');
+        bubble.classList.add('translate-y-0', 'opacity-100');
+
+        clearTimeout(bubbleTimeout);
+        bubbleTimeout = setTimeout(hideBubble, 5000);
+    }
+
+    function hideBubble() {
+        const bubble = document.getElementById('dialogue-bubble');
+        bubble.classList.add('translate-y-24', 'opacity-0', 'pointer-events-none');
+        bubble.classList.remove('translate-y-0', 'opacity-100');
+    }
+
+    // Sparkle Particle Spawner for Stars and Banners
+    function spawnParticles(element, color, particleChar = '✦') {
+        playCuteSound('star');
+        const container = document.getElementById('interactive-canvas');
+        const rect = element.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        
+        const x = rect.left - containerRect.left + rect.width / 2;
+        const y = rect.top - containerRect.top + rect.height / 2;
+
+        for (let i = 0; i < 8; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'star-particle text-xs';
+            particle.innerHTML = particleChar;
+            particle.style.color = color;
+            particle.style.left = `${x}px`;
+            particle.style.top = `${y}px`;
+
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 40 + Math.random() * 70;
+            const dx = Math.cos(angle) * distance;
+            const dy = Math.sin(angle) * distance + 20;
+
+            particle.style.setProperty('--dx', `${dx}px`);
+            particle.style.setProperty('--dy', `${dy}px`);
+
+            container.appendChild(particle);
+
+            setTimeout(() => {
+                particle.remove();
+            }, 1200);
+        }
+    }
+
+    // Interactive Explosion for the "pickup ME!" Banner
+    function bannerExplosion(element) {
+        playCuteSound('banner-pop');
+        // Spawn pretty hearts and pink sparkles
+        const chars = ['🌸', '💖', '✨', '♥', '✦'];
+        for (let i = 0; i < 3; i++) {
+            const randChar = chars[Math.floor(Math.random() * chars.length)];
+            spawnParticles(element, '#ec4899', randChar);
+        }
+    }
+
+    function enterResume() {
+        playCuteSound('click-success');
+        window.parent.postMessage({
+            type: 'opening-bookmarks:enter',
+            target: '#about'
+        }, '*');
+    }
+
+    function showConfirmModal() {
+        playCuteSound('click');
+        confirmModal.classList.remove('hidden');
+        requestAnimationFrame(() => {
+            confirmModal.classList.remove('opacity-0');
+            confirmModal.querySelector(':scope > div').classList.remove('scale-95');
+        });
+    }
+
+    function handleKeyboardAction(event, callback) {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            callback();
+        }
+    }
+
+    // 黑色问号直接进入 About Me；粉色大手保留确认弹窗
+    const confirmModal = document.getElementById('custom-confirm-modal');
+    const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+    const modalCancelBtn = document.getElementById('modal-cancel-btn');
+
+    secretBookmark.addEventListener('click', function(event) {
+        event.stopPropagation();
+        enterResume();
+    });
+    secretBookmark.addEventListener('keydown', (event) => handleKeyboardAction(event, enterResume));
+
+    giantHand.addEventListener('click', function(event) {
+        event.stopPropagation();
+        showConfirmModal();
+    });
+    giantHand.addEventListener('keydown', (event) => handleKeyboardAction(event, showConfirmModal));
+
+    modalCancelBtn.addEventListener('click', () => {
+        confirmModal.classList.add('opacity-0');
+        confirmModal.querySelector(':scope > div').classList.add('scale-95');
+        setTimeout(() => {
+            confirmModal.classList.add('hidden');
+        }, 300);
+    });
+
+    modalConfirmBtn.addEventListener('click', () => {
+        confirmModal.classList.add('opacity-0');
+        confirmModal.querySelector(':scope > div').classList.add('scale-95');
+        setTimeout(() => {
+            confirmModal.classList.add('hidden');
+            enterResume();
+        }, 300);
+    });
+
+    // 触屏设备用点击代替 hover 上移，同时保留 dialogue bubble。
+    document.querySelectorAll('.bookmark-hover').forEach((bookmark) => {
+        bookmark.addEventListener('click', () => {
+            if (!window.matchMedia('(hover: none)').matches) return;
+            document.querySelectorAll('.bookmark-hover.is-touch-raised').forEach((item) => {
+                if (item !== bookmark) item.classList.remove('is-touch-raised');
+            });
+            bookmark.classList.toggle('is-touch-raised');
+        });
+    });
+</script>
+</body>
+</html>
